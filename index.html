@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Favoritos</title>
+    
+    <style>
+        /* --- Reset Básico e Estilos Globais --- */
+        :root {
+            --background-start: #1e3a8a; /* Azul escuro */ 
+            --background-end: #0c1a4d; /* Azul mais escuro */ 
+            --group-background: rgba(17, 24, 39, 0.7); /* Fundo do grupo semi-transparente */ 
+            --text-color: #f1f5f9; /* Branco acinzentado */ 
+            --border-color: rgba(255, 255, 255, 0.1); 
+            --hover-shadow: 0 0 15px rgba(59, 130, 246, 0.5); /* Sombra azul no hover */ 
+        }
+
+        * {
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; 
+            color: var(--text-color); 
+            background-color: var(--background-end); 
+            background-image: linear-gradient(145deg, var(--background-start), var(--background-end)); 
+            background-size: cover; 
+            background-position: center; 
+            background-attachment: fixed; 
+            min-height: 100vh; 
+        }
+
+        /* --- Estrutura Principal --- */
+        .container {
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 2rem;
+        }
+
+        /* --- Barra Superior --- */
+        .top-bar {
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            margin-bottom: 2rem;
+            position: relative; 
+        }
+
+        .search-bar {
+            width: 100%; 
+            max-width: 500px; 
+            padding: 0.75rem 1.5rem; 
+            border-radius: 50px; 
+            border: 1px solid var(--border-color); 
+            background-color: var(--group-background); 
+            color: var(--text-color); 
+            font-size: 1rem; 
+            backdrop-filter: blur(10px); 
+            -webkit-backdrop-filter: blur(10px); 
+        }
+
+        .search-bar::placeholder {
+            color: rgba(255, 255, 255, 0.5); 
+        }
+
+        .context-menu-btn {
+            position: absolute; 
+            right: 0; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            background: none; 
+            border: none; 
+            color: var(--text-color); 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            padding: 0.5rem; 
+        }
+
+        /* --- Container dos Grupos --- */
+        #groups-container {
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
+            gap: 2rem;
+        }
+
+        /* --- Estilo de cada Grupo (e Subgrupo) --- */
+        .group {
+            background-color: var(--group-background); 
+            border-radius: 16px; 
+            padding: 1.5rem; 
+            border: 1px solid var(--border-color); 
+            backdrop-filter: blur(10px); 
+            -webkit-backdrop-filter: blur(10px); 
+            transition: border-color 0.2s ease; 
+        }
+
+        .group.selected {
+            border-color: #3b82f6; 
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); 
+        }
+
+        .group-header {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 1.5rem;
+        }
+
+        .group-header h2 {
+            font-size: 1.1rem; 
+            font-weight: 600; 
+            letter-spacing: 1px; 
+        }
+        
+        .group-header-actions {
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+        }
+
+        .add-favorite-btn {
+            background: rgba(255, 255, 255, 0.1); 
+            border: none; 
+            color: var(--text-color); 
+            width: 32px; 
+            height: 32px; 
+            border-radius: 50%; 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            transition: background-color 0.2s; 
+        }
+
+        .add-favorite-btn:hover {
+            background: rgba(255, 255, 255, 0.2); 
+        }
+
+        .group-context-btn {
+            background: none; 
+            border: none; 
+            color: var(--text-color); 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            padding: 0.5rem; 
+            border-radius: 50%; 
+            transition: background-color 0.2s; 
+        }
+
+        .group-context-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2); 
+        }
+
+        /* --- Grade de Favoritos --- */
+        .favorites-grid {
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
+            gap: 1.5rem; 
+        }
+
+        .favorite-item {
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 0.5rem; 
+            text-decoration: none; 
+            color: var(--text-color); 
+            transition: transform 0.2s ease-in-out; 
+            cursor: pointer; 
+        }
+        
+        .favorite-item:hover {
+            transform: scale(1.08); 
+        }
+
+        .favorite-item .favicon-container {
+            width: 60px; 
+            height: 60px; 
+            border-radius: 12px; 
+            background-color: rgba(0, 0, 0, 0.2); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); 
+        }
+
+        .favorite-item img {
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+        }
+
+        .favorite-item .name {
+            font-size: 0.8rem; 
+            text-align: center; 
+            width: 100%; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+        }
+        
+        .favorite-actions {
+            position: absolute; 
+            top: -5px; 
+            right: -5px; 
+            display: flex; 
+            gap: 5px; 
+            opacity: 0; 
+            visibility: hidden; 
+            transition: opacity 0.2s, visibility 0.2s; 
+            z-index: 10; 
+            background-color: rgba(0, 0, 0, 0.7); 
+            border-radius: 12px; 
+            padding: 3px; 
+        }
+
+        .favorite-item:hover .favorite-actions {
+            opacity: 1; 
+            visibility: visible; 
+        }
+
+        .action-btn {
+            background-color: transparent; 
+            border: none; 
+            color: white; 
+            width: 24px; 
+            height: 24px; 
+            border-radius: 50%; 
+            font-size: 12px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 0; 
+            transition: background-color 0.2s; 
+        }
+
+        .action-btn:hover {
+            background-color: rgba(59, 130, 246, 0.5); 
+        }
+
+        .delete-fav-btn:hover {
+            background-color: rgba(239, 68, 68, 0.5); 
+        }
+
+        /* --- Estilos de Hierarquia (Subgrupos) --- */
+        .subgroup-container {
+            margin-top: 1.5rem;
+            padding-left: 1rem;
+            border-left: 2px solid var(--border-color);
+        }
+
+        .subgroup {
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .subgroup:last-child {
+            margin-bottom: 0;
+        }
+
+        /* --- Estilos do Modal --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0, 0, 0, 0.6); 
+            backdrop-filter: blur(5px); 
+            -webkit-backdrop-filter: blur(5px); 
+            align-items: center; 
+            justify-content: center; 
+        }
+
+        .modal.show {
+            display: flex; 
+        }
+
+        .modal-content {
+            background-color: var(--group-background); 
+            padding: 2rem; 
+            border-radius: 16px; 
+            border: 1px solid var(--border-color); 
+            width: 90%; 
+            max-width: 400px; 
+            position: relative; 
+        }
+
+        .modal-content .close-btn {
+            position: absolute; 
+            top: 10px; 
+            right: 20px; 
+            color: var(--text-color); 
+            font-size: 2rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+        }
+        
+        .modal-content h3 {
+            margin-bottom: 1.5rem; 
+            text-align: center; 
+        }
+
+        .form-group {
+            margin-bottom: 1rem; 
+        }
+
+        .form-group label {
+            display: block; 
+            margin-bottom: 0.5rem; 
+        }
+
+        .form-group input {
+            width: 100%; 
+            padding: 0.75rem; 
+            background-color: rgba(0, 0, 0, 0.2); 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            color: var(--text-color); 
+            font-size: 1rem; 
+        }
+        
+        .btn-primary {
+            width: 100%; 
+            padding: 0.75rem; 
+            border: none; 
+            border-radius: 8px; 
+            background-color: #3b82f6; 
+            color: white; 
+            font-size: 1rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 1rem;
+        }
+
+        /* Classe utilitária para esconder elementos */
+        .hidden {
+            display: none !important; 
+        }
+
+        /* Menus de Contexto */
+        .context-menu-wrapper {
+            display: none; 
+            position: absolute; 
+            background-color: var(--group-background); 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3); 
+            z-index: 1100; 
+            backdrop-filter: blur(10px); 
+            -webkit-backdrop-filter: blur(10px); 
+        }
+
+        .context-menu-wrapper.show {
+            display: block; 
+        }
+
+        .context-menu-wrapper ul {
+            list-style: none; 
+            padding: 0.5rem 0; 
+            margin: 0; 
+        }
+
+        .context-menu-wrapper li {
+            padding: 0.75rem 1.5rem; 
+            cursor: pointer; 
+            transition: background-color 0.2s; 
+            white-space: nowrap; 
+        }
+        
+        .context-menu-wrapper li:hover {
+            background-color: rgba(59, 130, 246, 0.2); 
+        }
+
+        #group-context-menu {
+            width: 180px; 
+            box-sizing: border-box; 
+        }
+
+        #group-context-menu li {
+            padding: 0.75rem 1rem; 
+        }
+
+        /* --- Estilos para Drag and Drop --- */
+        .favorite-item.dragging {
+            opacity: 0.5; 
+            cursor: grabbing; 
+        }
+
+        .favorites-grid.drag-over {
+            background-color: rgba(59, 130, 246, 0.1); 
+            border: 2px dashed rgba(59, 130, 246, 0.4); 
+            border-radius: 12px; 
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="top-bar">
+            <input type="search" id="search-bar" class="search-bar" placeholder="🔎 Pesquisar">
+            <button class="context-menu-btn" title="Menu">⋮</button>
+        </header>
+
+        <div id="context-menu" class="context-menu-wrapper">
+            <ul>
+                <li data-action="change-wallpaper">Trocar papel de parede</li> 
+                <li data-action="restore-wallpaper">Restaurar papel de parede</li> 
+                <li data-action="import">Importar favoritos</li> 
+                <li data-action="export">Exportar favoritos</li> 
+                <li data-action="create-group">Criar novo grupo</li> 
+            </ul>
+        </div>
+
+        <div id="group-context-menu" class="context-menu-wrapper">
+            <ul>
+                <li data-action="rename-group">Renomear Grupo</li> 
+                <li data-action="delete-group" style="color: #fca5a5;">Excluir Grupo</li> 
+            </ul>
+        </div>
+
+        <main id="groups-container">
+            </main>
+    </div>
+
+    <div id="add-favorite-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">×</span>
+            <h3 id="modal-title">Adicionar Novo Favorito</h3>
+            <form id="add-favorite-form">
+                <div class="form-group">
+                    <label for="favorite-name">Nome</label>
+                    <input type="text" id="favorite-name" required> 
+                </div>
+                <div class="form-group">
+                    <label for="favorite-url">URL</label>
+                    <input type="url" id="favorite-url" placeholder="https://exemplo.com" required> 
+                </div>
+                <button type="submit" class="btn-primary" id="modal-submit-btn">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <input type="file" id="wallpaper-input" class="hidden" accept="image/*">
+    <input type="file" id="import-input" class="hidden" accept=".html,text/html">
+
+    <script>
+    // --- Funções de Exportação (Fase 3) ---
+    // Função para gerar o conteúdo HTML para exportação
+    function generateExportHTML() {
+        let htmlContent = `<!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <title>Meus Favoritos Exportados</title>
+        <style>
+            body { font-family: sans-serif; line-height: 1.6; }
+            h1 { border-bottom: 2px solid #333; }
+            h2 { margin-top: 2em; }
+            a { text-decoration: none; color: #0066cc; }
+            a:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <h1>Meus Favoritos</h1>`;
+        appData.groups.forEach(group => {
+            htmlContent += `
+        <h2>${group.name}</h2>
+        <ul>`;
+            group.favorites.forEach(fav => {
+                htmlContent += `
+            <li><a href="${fav.url}">${fav.name}</a></li>`;
+            });
+            htmlContent += `
+        </ul>`;
+        });
+        htmlContent += `
+    </body>
+    </html>`;
+        return htmlContent;
+    }
+
+    // Função para acionar o download do arquivo de favoritos
+    function exportFavorites() {
+        const htmlContent = generateExportHTML();
+        // Cria um Blob com o conteúdo HTML
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        // Cria um link <a> temporário em memória
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `favoritos_exportados_${new Date().toLocaleDateString()}.html`;
+        // Simula um clique no link para iniciar o download
+        document.body.appendChild(link);
+        link.click();
+        // Remove o link temporário
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    }
+
+    // --- Camada de Lógica e Persistência (Fase 2) ---
+    // 3.3 Estrutura de Dados (Exemplo inicial)
+    const defaultData = {
+    "groups": [
+        {
+        "id": "group1",
+        "name": "FERRAMENTAS DE IA",
+        "favorites": [
+            { "id": "fav1", "name": "Perplexity AI", "url": "https://www.perplexity.ai/"  },
+            { "id": "fav2", "name": "Grok Beta", "url": "https://grok.x.ai/"  },
+            { "id": "fav3", "name": "Claude", "url": "https://claude.ai/"  },
+            { "id": "fav4", "name": "Google Gemini", "url": "https://gemini.google.com/"  },
+            { "id": "fav5", "name": "ChatGPT", "url": "https://chat.openai.com/"  }
+        ],
+        "subgroups": []
+        },
+        {
+        "id": "group2",
+        "name": "TRABALHO",
+        "favorites": [
+            { "id": "fav6", "name": "Google Drive", "url": "https://drive.google.com/"  },
+            { "id": "fav7", "name": "GitHub", "url": "https://github.com/"  },
+            { "id": "fav8", "name": "Figma", "url": "https://www.figma.com/"  },
+            { "id": "fav9", "name": "Trello", "url": "https://trello.com/"  }
+        ],
+        "subgroups": []
+        },
+        {
+        "id": "group3",
+        "name": "MÍDIA E ENTRETENIMENTO",
+        "favorites": [
+            { "id": "fav10", "name": "YouTube", "url": "https://www.youtube.com/"  },
+            { "id": "fav11", "name": "Netflix", "url": "https://www.netflix.com/"  },
+            { "id": "fav12", "name": "Spotify", "url": "https://www.spotify.com/"  }
+        ],
+        "subgroups": []
+        }
+    ],
+    "background": null // Futuro uso para papel de parede
+    };
+
+    let appData = {};
+    // Função para carregar dados do localStorage ou usar os dados padrão
+    function loadData() {
+        const savedData = localStorage.getItem('launcherFavorites');
+        if (savedData) {
+            appData = JSON.parse(savedData);
+        } else {
+            appData = defaultData;
+            saveData(); // Salva os dados padrão na primeira vez
+        }
+    }
+
+    // Função para salvar os dados no localStorage
+    function saveData() {
+        localStorage.setItem('launcherFavorites', JSON.stringify(appData));
+    }
+
+    // --- Funções de Papel de Parede (Fase 3) ---
+    // Aplica o papel de parede salvo no body
+    function applyWallpaper() {
+        const savedWallpaper = appData.background;
+        if (savedWallpaper) {
+            document.body.style.backgroundImage = `url(${savedWallpaper})`;
+        } else {
+            // Se não houver papel de parede salvo, volta ao gradiente padrão
+            document.body.style.backgroundImage = 'linear-gradient(145deg, var(--background-start), var(--background-end))';
+        }
+    }
+
+    // Lê o arquivo de imagem e o salva no localStorage
+    function handleWallpaperSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        // Quando a leitura do arquivo terminar
+        reader.onload = (e) => {
+            const imageDataUrl = e.target.result; // Imagem em formato Base64
+            // Salva a imagem nos dados da aplicação
+            appData.background = imageDataUrl;
+            saveData();
+            // Aplica a nova imagem imediatamente
+            applyWallpaper();
+        };
+        // Inicia a leitura do arquivo
+        reader.readAsDataURL(file);
+    }    
+    // Aciona o clique no input de arquivo escondido
+    function openWallpaperSelector() {
+        document.getElementById('wallpaper-input').click();
+    }
+
+    // Restaura o papel de parede para o gradiente padrão
+    function restoreDefaultWallpaper() {
+        appData.background = null; // Remove a imagem de fundo personalizada dos dados
+        saveData();                // Salva a alteração no localStorage
+        applyWallpaper();          // Reaplica o papel de parede (que agora será o gradiente padrão)
+        console.log('Papel de parede restaurado para o padrão.');
+    }
+
+    // --- Funções de Importação (Fase 3) ---
+    /**
+     * Função principal que inicia o processo de parsing.
+     * Recebe o HTML como texto, cria um DOM temporário e chama a função recursiva.
+     */
+    function parseBookmarks(htmlString) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, 'text/html');
+        // Procura a primeira lista de definição <DL>, que é o contêiner principal dos favoritos
+        const mainDl = doc.querySelector('dl');
+        if (!mainDl) {
+            alert('Arquivo de favoritos inválido ou em formato não reconhecido.');
+            return [];
+        }
+        return buildTree(mainDl);
+    }
+
+    /**
+     * Função buildTree - Converte a estrutura HTML em uma árvore de dados genérica
+     * Preserva fielmente a hierarquia de pastas e favoritos do Chrome
+     */
+    function buildTree(dlElement) {
+        const items = [];
+        
+        // Encontra todos os elementos DT dentro deste DL
+        const dtElements = dlElement.querySelectorAll(':scope > dt');
+        
+        dtElements.forEach(dt => {
+            const h3 = dt.querySelector('h3');
+            
+            if (h3) {
+                // É uma pasta
+                const folderName = h3.textContent.trim();
+                
+                // Procura o próximo elemento DL após este DT
+                let nextDl = null;
+                let sibling = dt.nextElementSibling;
+                
+                while (sibling) {
+                    if (sibling.tagName === 'DL') {
+                        nextDl = sibling;
+                        break;
+                    }
+                    if (sibling.tagName === 'DT') {
+                        break; // Parar se encontrar outra pasta
+                    }
+                    sibling = sibling.nextElementSibling;
+                }
+                
+                // Se encontrou um DL aninhado diretamente dentro do DT
+                const nestedDl = dt.querySelector('dl');
+                const children = nestedDl ? buildTree(nestedDl) : [];
+                
+                items.push({
+                    type: 'folder',
+                    name: folderName,
+                    children: children
+                });
+            } else {
+                // Deve ser um link
+                const link = dt.querySelector('a');
+                if (link) {
+                    items.push({
+                        type: 'bookmark',
+                        name: link.textContent.trim(),
+                        url: link.href
+                    });
+                }
+            }
+        });
+        
+        return items;
+    }
+
+    /**
+     * Função convertTreeToAppGroups - Converte a árvore de dados para o formato appData
+     */
+    function convertTreeToAppGroups(tree) {
+        const groups = [];
+        const topLevelFolders = tree.filter(item => item.type === 'folder');
+        const topLevelBookmarks = tree.filter(item => item.type === 'bookmark');
+        
+        // Adicionar grupo para favoritos raiz
+        if (topLevelBookmarks.length > 0) {
+            groups.push({
+                id: `group-${Date.now()}-root`,
+                name: 'Favoritos Raiz',
+                favorites: topLevelBookmarks.map(b => ({
+                    id: `fav-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    name: b.name,
+                    url: b.url
+                })),
+                subgroups: []
+            });
+        }
+        
+        // Converter pastas no nível raiz em grupos
+        topLevelFolders.forEach(folder => {
+            groups.push(convertFolderToGroup(folder, `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`));
+        });
+        
+        return groups;
+    }
+
+    /**
+     * Função auxiliar - Converte uma pasta da árvore em um grupo do appData
+     */
+    function convertFolderToGroup(folder, id) {
+        const group = {
+            id: id,
+            name: folder.name,
+            favorites: [],
+            subgroups: []
+        };
+        
+        folder.children.forEach(child => {
+            if (child.type === 'bookmark') {
+                // Adicionar como favorito
+                group.favorites.push({
+                    id: `fav-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    name: child.name,
+                    url: child.url
+                });
+            } else if (child.type === 'folder') {
+                // Converter recursivamente como subgrupo
+                group.subgroups.push(convertFolderToGroup(child, `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`));
+            }
+        });
+        
+        return group;
+    }
+
+    /**
+     * Função renderHierarquia - Renderiza a estrutura aninhada de grupos e subgrupos
+     */
+    function renderHierarquia(groups, container, isSubgroup = false) {
+        groups.forEach(group => {
+            const groupElement = document.createElement('section');
+            groupElement.className = 'group';
+            groupElement.dataset.groupId = group.id;
+            
+            // Adicionar classe especial para subgrupos
+            if (isSubgroup) {
+                groupElement.classList.add('subgroup');
+            }
+            
+            // Cabeçalho do grupo
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'group-header';
+            
+            const headerText = document.createElement('h2');
+            headerText.textContent = group.name;
+            groupHeader.appendChild(headerText);
+            
+            // Ações do grupo (somente para grupos principais)
+            if (!isSubgroup) {
+                const actionsContainer = document.createElement('div');
+                actionsContainer.className = 'group-header-actions';
+                
+                const addBtn = document.createElement('button');
+                addBtn.className = 'add-favorite-btn';
+                addBtn.title = 'Adicionar Favorito';
+                addBtn.textContent = '+';
+                actionsContainer.appendChild(addBtn);
+                
+                const contextBtn = document.createElement('button');
+                contextBtn.className = 'group-context-btn';
+                contextBtn.title = 'Opções do Grupo';
+                contextBtn.textContent = '⋮';
+                actionsContainer.appendChild(contextBtn);
+                
+                groupHeader.appendChild(actionsContainer);
+            }
+            
+            groupElement.appendChild(groupHeader);
+            
+            // Grade de favoritos
+            const favoritesGrid = document.createElement('div');
+            favoritesGrid.className = 'favorites-grid';
+            
+            // Renderizar favoritos diretos
+            group.favorites.forEach(fav => {
+                const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${fav.url}`;
+                const favoriteElement = document.createElement('div');
+                favoriteElement.draggable = true;
+                favoriteElement.className = 'favorite-item';
+                favoriteElement.dataset.favoriteId = fav.id;
+                
+                favoriteElement.innerHTML = `
+                    <div class="favorite-actions">
+                        <button class="action-btn edit-fav-btn" title="Editar">✏️</button>
+                        <button class="action-btn delete-fav-btn" title="Excluir">❌</button>
+                    </div>
+                    <a href="${fav.url}" target="_blank" class="favicon-container" title="${fav.name}">
+                        <img src="${faviconUrl}" alt="Favicon de ${fav.name}" onerror="this.style.display='none'">
+                    </a>
+                    <span class="name">${fav.name}</span>
+                `;
+                
+                favoritesGrid.appendChild(favoriteElement);
+            });
+            
+            groupElement.appendChild(favoritesGrid);
+            
+            // Renderizar subgrupos recursivamente
+            if (group.subgroups && group.subgroups.length > 0) {
+                const subgroupContainer = document.createElement('div');
+                subgroupContainer.style.marginLeft = '1rem';
+                subgroupContainer.style.paddingLeft = '1rem';
+                subgroupContainer.style.borderLeft = '2px solid rgba(255, 255, 255, 0.1)';
+                
+                renderHierarquia(group.subgroups, subgroupContainer, true);
+                
+                groupElement.appendChild(subgroupContainer);
+            }
+            
+            container.appendChild(groupElement);
+        });
+    }
+
+    /**
+     * Função chamada quando o usuário seleciona um arquivo.
+     * Usa a API FileReader para ler o conteúdo do arquivo como texto.
+     */
+    function handleImportSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const htmlContent = e.target.result;
+            try {
+                const parsedTree = parseBookmarks(htmlContent);
+                const importedGroups = convertTreeToAppGroups(parsedTree);
+                
+                // Adicionar os grupos aos dados existentes
+                appData.groups = [...appData.groups, ...importedGroups];
+                
+                saveData();
+                render();
+                
+                alert(`Importação concluída!
+    Grupos importados: ${importedGroups.length}
+    Favoritos importados: ${countTotalBookmarks(parsedTree)}
+    Estrutura hierárquica preservada`);
+            } catch (error) {
+                console.error('Erro ao importar favoritos:', error);
+                alert('Ocorreu um erro ao tentar importar o arquivo.');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    /**
+     * Função auxiliar para contar total de favoritos na árvore
+     */
+    function countTotalBookmarks(tree) {
+        let count = 0;
+        
+        function traverse(node) {
+            if (node.type === 'bookmark') {
+                count++;
+            } else if (node.type === 'folder' && node.children) {
+                node.children.forEach(traverse);
+            }
+        }
+        
+        tree.forEach(traverse);
+        return count;
+    }
+
+    // Aciona o clique no input de arquivo escondido para importação
+    function openImportSelector() {
+        document.getElementById('import-input').click();
+    }
+
+    // --- Camada de Apresentação ---
+    // Função principal para renderizar todos os grupos e favoritos na tela
+    function render() {
+        const groupsContainer = document.getElementById('groups-container');
+        groupsContainer.innerHTML = ''; // Limpa a tela antes de renderizar
+        
+        if (!appData.groups) return;
+        
+        // Criar um contêiner para cada grupo principal
+        appData.groups.forEach(group => {
+            const groupContainer = document.createElement('div');
+            groupContainer.className = 'main-group-container';
+            
+            // Renderizar o grupo principal e seus subgrupos
+            renderHierarquia([group], groupContainer);
+            
+            groupsContainer.appendChild(groupContainer);
+        });
+    }
+
+    // --- Inicialização ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData();
+        render();
+        applyWallpaper();
+        // =================================================================
+        // 1. DECLARAÇÃO DE VARIÁVEIS DE ELEMENTOS (CORREÇÃO DA ORDEM)
+        // =================================================================
+        const groupsContainer = document.getElementById('groups-container');
+        const searchBar = document.getElementById('search-bar');
+        // Modal de Adicionar/Editar Favorito
+        const modal = document.getElementById('add-favorite-modal');
+        const closeModalBtn = modal.querySelector('.close-btn');
+        const addFavoriteForm = document.getElementById('add-favorite-form');
+        // Menu de Contexto Principal
+        const contextMenuBtn = document.querySelector('.context-menu-btn');
+        const contextMenu = document.getElementById('context-menu');
+        // Menu de Contexto do Grupo
+        const groupContextMenu = document.getElementById('group-context-menu');
+        // Inputs de Arquivo
+        const wallpaperInput = document.getElementById('wallpaper-input');
+        const importInput = document.getElementById('import-input');
+        // Variáveis de estado
+        let currentGroupId = null;
+        let editState = { enabled: false, favoriteId: null };
+        let activeGroupId = null; // Para saber qual grupo está com o menu aberto
+        // =================================================================
+        // 4. LÓGICA DE DRAG AND DROP (RF08, RF13)
+        // =================================================================
+        let draggedItem = null;
+        let sourceGroupId = null;
+        // Adiciona os listeners ao container principal usando delegação de evento
+        groupsContainer.addEventListener('dragstart', (e) => {
+            // Alvo do evento: o item que começou a ser arrastado
+            if (e.target.classList.contains('favorite-item')) {
+                draggedItem = e.target;
+                sourceGroupId = e.target.closest('.group').dataset.groupId;
+                // Adiciona a classe para dar feedback visual 
+                setTimeout(() => {
+                    e.target.classList.add('dragging');
+                }, 0);
+            }
+        });
+        groupsContainer.addEventListener('dragend', (e) => {
+            // Garante a limpeza ao final do arrasto (seja por drop ou cancelamento)
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+                sourceGroupId = null;
+                // Remove a classe de highlight de todos os grupos
+                document.querySelectorAll('.favorites-grid.drag-over').forEach(grid => {
+                    grid.classList.remove('drag-over');
+                });
+            }
+        });
+        groupsContainer.addEventListener('dragover', (e) => {
+            // Permite que a área seja um alvo de drop
+            const targetGrid = e.target.closest('.favorites-grid');
+            if (targetGrid) {
+                e.preventDefault(); 
+                // Adiciona o feedback visual de que é uma área válida 
+                targetGrid.classList.add('drag-over');
+            }
+        });
+        groupsContainer.addEventListener('dragleave', (e) => {
+            const targetGrid = e.target.closest('.favorites-grid');
+            if (targetGrid) {
+                targetGrid.classList.remove('drag-over');
+            }
+        });
+        groupsContainer.addEventListener('dragstart', (e) => {
+            // A CORREÇÃO CRÍTICA ESTÁ AQUI:
+            // Usamos .closest() para garantir que sempre pegamos o container do favorito,
+            // não importa se o clique foi na imagem, no texto ou no fundo.
+            const favoriteItem = e.target.closest('.favorite-item');
+            if (favoriteItem) {
+                draggedItem = favoriteItem; // Armazena o item correto
+                sourceGroupId = favoriteItem.closest('.group').dataset.groupId;
+                // Adiciona a classe para o feedback visual ("sombra")
+                // O setTimeout garante que a aparência mude após o início do arrasto.
+                setTimeout(() => {
+                    favoriteItem.classList.add('dragging');
+                }, 0);
+            }
+        });
+        // Listener para quando o item é solto
+        groupsContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const targetGroupElement = e.target.closest('.group');
+            if (!targetGroupElement || !draggedItem) return; // Aborta se não for um alvo válido
+            // Lógica para manipular os dados
+            const targetGroupId = targetGroupElement.dataset.groupId;
+            const favoriteId = draggedItem.dataset.favoriteId;
+            const sourceGroup = appData.groups.find(g => g.id === sourceGroupId);
+            const favoriteIndex = sourceGroup.favorites.findIndex(f => f.id === favoriteId);
+            if (favoriteIndex === -1) return;
+            // Remove o favorito da origem
+            const [favoriteToMove] = sourceGroup.favorites.splice(favoriteIndex, 1);
+            const targetGroup = appData.groups.find(g => g.id === targetGroupId);
+            // Adiciona no destino (com lógica de reordenação)
+            const dropTargetElement = e.target.closest('.favorite-item');
+            if (dropTargetElement && dropTargetElement !== draggedItem) {
+                const dropTargetId = dropTargetElement.dataset.favoriteId;
+                const targetIndex = targetGroup.favorites.findIndex(f => f.id === dropTargetId);
+                if (targetIndex !== -1) {
+                    targetGroup.favorites.splice(targetIndex, 0, favoriteToMove);
+                } else {
+                    targetGroup.favorites.push(favoriteToMove); // Segurança
+                }
+            } else {
+                targetGroup.favorites.push(favoriteToMove);
+            }
+            // Salva e atualiza a interface
+            saveData();
+            render();
+        });
+        // =================================================================
+        // 2. FUNÇÕES DO MODAL (ORGANIZADAS)
+        // =================================================================
+        function openModal(groupId, favorite = null) {
+            currentGroupId = groupId;
+            editState.enabled = !!favorite;
+            editState.favoriteId = favorite ? favorite.id : null;
+            modal.querySelector('h3').textContent = favorite ? 'Editar Favorito' : 'Adicionar Novo Favorito';
+            document.getElementById('favorite-name').value = favorite ? favorite.name : '';
+            document.getElementById('favorite-url').value = favorite ? favorite.url : '';
+            modal.classList.add('show');
+            document.getElementById('favorite-name').focus();
+        }
+        function closeModal() {
+            addFavoriteForm.reset();
+            modal.classList.remove('show');
+            currentGroupId = null;
+            editState.enabled = false;
+            editState.favoriteId = null;
+        }
+        // =================================================================
+        // 3. EVENT LISTENERS (AGORA QUE AS VARIÁVEIS EXISTEM)
+        // =================================================================
+        // Listener para fechar menus ao clicar fora
+        window.addEventListener('click', (e) => {
+            if (!contextMenu.contains(e.target) && !contextMenuBtn.contains(e.target)) {
+                contextMenu.classList.remove('show');
+            }
+            if (!groupContextMenu.contains(e.target) && !e.target.classList.contains('group-context-btn')) {
+                groupContextMenu.classList.remove('show');
+            }
+        });
+        // Listener do Menu de Contexto Principal
+        contextMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            groupContextMenu.classList.remove('show'); // Garante que o outro menu feche
+            contextMenu.classList.toggle('show');
+        });
+        contextMenu.addEventListener('click', (e) => {
+            const action = e.target.dataset.action;
+            if (!action) return;            
+            switch (action) {
+                case 'change-wallpaper':
+                    openWallpaperSelector();
+                    break;
+                case 'restore-wallpaper':
+                    restoreDefaultWallpaper();
+                    break;
+                case 'import':
+                    openImportSelector();
+                    break;
+                case 'export':
+                    exportFavorites();
+                    break;
+                case 'create-group':
+                    const groupName = prompt('Digite o nome do novo grupo:');
+                    if (groupName) {
+                        const newGroup = {
+                            id: 'group' + Date.now(),
+                            name: groupName,
+                            favorites: [],
+                            subgroups: []
+                        };
+                        appData.groups.push(newGroup);
+                        saveData();
+                        render();
+                    }
+                    break;
+                case 'delete-group':
+                    const selectedGroup = document.querySelector('.group.selected');
+                    if (!selectedGroup) {
+                        alert('Por favor, selecione um grupo para excluir.');
+                        return;
+                    }
+                    const groupId = selectedGroup.dataset.groupId;
+                    const group = appData.groups.find(g => g.id === groupId);
+                    if (group && confirm(`Tem certeza que deseja excluir o grupo "${group.name}" e todos os seus favoritos?`)) {
+                        const index = appData.groups.findIndex(g => g.id === groupId);
+                        appData.groups.splice(index, 1);
+                        saveData();
+                        render();
+                    }
+                    break;
+            }
+            contextMenu.classList.remove('show');
+        });
+        // Listener do Menu de Contexto do GRUPO
+        groupContextMenu.addEventListener('click', (e) => {
+            const action = e.target.dataset.action;
+            if (!action || !activeGroupId) return;
+            const group = appData.groups.find(g => g.id === activeGroupId);
+            if (!group) return;
+            if (action === 'rename-group') {
+                const newName = prompt('Digite o novo nome para o grupo:', group.name);
+                if (newName && newName.trim()) {
+                    group.name = newName.trim();
+                    saveData();
+                    render();
+                }
+            } else if (action === 'delete-group') {
+                if (confirm(`Tem certeza que deseja excluir o grupo "${group.name}"?`)) {
+                    appData.groups = appData.groups.filter(g => g.id !== activeGroupId);
+                    saveData();
+                    render();
+                }
+            }
+            groupContextMenu.classList.remove('show');
+        });
+        // Listener dos Inputs de Arquivo
+        wallpaperInput.addEventListener('change', handleWallpaperSelect);
+        importInput.addEventListener('change', handleImportSelect);
+        // Listener da Barra de Pesquisa
+        searchBar.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            document.querySelectorAll('.group').forEach(group => {
+                let hasVisibleFavorites = false;
+                const favoritesGrid = group.querySelector('.favorites-grid');
+                if (!favoritesGrid) return;
+                favoritesGrid.querySelectorAll('.favorite-item').forEach(fav => {
+                    const nameElement = fav.querySelector('.name');
+                    if (!nameElement) return;
+                    const name = nameElement.textContent.toLowerCase();
+                    const url = fav.querySelector('.favicon-container').getAttribute('href').toLowerCase();
+                    if (name.includes(query) || url.includes(query)) {
+                        fav.style.display = '';
+                        hasVisibleFavorites = true;
+                    } else {
+                        fav.style.display = 'none';
+                    }
+                });
+                group.style.display = hasVisibleFavorites ? '' : 'none';
+            });
+        });
+        // Listener do Modal de Adicionar/Editar
+        closeModalBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { e.target === modal && closeModal(); });
+        addFavoriteForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('favorite-name').value;
+            const url = document.getElementById('favorite-url').value;
+            const group = appData.groups.find(g => g.id === currentGroupId);
+            if (!group) return;
+            if (editState.enabled) {
+                // MODO EDIÇÃO: Atualiza o favorito existente
+                const favorite = group.favorites.find(f => f.id === editState.favoriteId);
+                if (favorite) {
+                    favorite.name = name;
+                    favorite.url = url;
+                }
+            } else {
+                // MODO CRIAÇÃO: Adiciona novo favorito
+                const newFavorite = {
+                    id: 'fav' + Date.now(),
+                    name: name,
+                    url: url
+                };
+                group.favorites.push(newFavorite);
+            }
+            saveData();
+            render();
+            closeModal();
+        });
+        // Listener ÚNICO e principal para todas as ações dentro dos grupos
+        groupsContainer.addEventListener('click', (e) => {
+            const target = e.target;
+            const groupElement = target.closest('.group');
+            if (!groupElement) return;
+            // Ação: Abrir modal para ADICIONAR favorito
+            if (target.classList.contains('add-favorite-btn')) {
+                openModal(groupElement.dataset.groupId);
+                return;
+            }
+            // Ação: Abrir o menu de contexto do GRUPO
+            if (target.classList.contains('group-context-btn')) {
+                e.stopPropagation();
+                activeGroupId = groupElement.dataset.groupId;
+                // Remove seleção de outros grupos e seleciona o atual
+                document.querySelectorAll('.group').forEach(g => g.classList.remove('selected'));
+                groupElement.classList.add('selected');
+                const rect = target.getBoundingClientRect();
+                contextMenu.classList.remove('show'); // Garante que o outro menu feche
+                groupContextMenu.style.top = `${rect.bottom + window.scrollY}px`;
+                groupContextMenu.style.left = `${rect.left + window.scrollX - groupContextMenu.offsetWidth + 30}px`;
+                groupContextMenu.classList.add('show');
+                return;
+            }
+            const favoriteElement = target.closest('.favorite-item');
+            if (!favoriteElement) {
+                // Se clicou no grupo mas não em um favorito ou botão
+                if (!target.closest('.add-favorite-btn') && !target.closest('.group-context-btn')) {
+                    // Toggle seleção do grupo
+                    document.querySelectorAll('.group').forEach(g => {
+                        if (g !== groupElement) g.classList.remove('selected');
+                    });
+                    groupElement.classList.toggle('selected');
+                }
+                return;
+            }
+            // Ação: EDITAR favorito
+            if (target.classList.contains('edit-fav-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const favoriteId = favoriteElement.dataset.favoriteId;
+                const group = appData.groups.find(g => g.id === groupElement.dataset.groupId);
+                const favorite = group.favorites.find(f => f.id === favoriteId);
+                if (favorite) {
+                    openModal(group.id, favorite);
+                }
+                return;
+            }
+            // Ação: EXCLUIR favorito
+            if (target.classList.contains('delete-fav-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const favoriteId = favoriteElement.dataset.favoriteId;
+                const group = appData.groups.find(g => g.id === groupElement.dataset.groupId);
+                const favIndex = group.favorites.findIndex(f => f.id === favoriteId);
+                if (favIndex !== -1 && confirm(`Tem certeza que deseja excluir "${group.favorites[favIndex].name}"?`)) {
+                    group.favorites.splice(favIndex, 1);
+                    saveData();
+                    render();
+                }
+                return;
+            }
+        });
+    });
+    </script>
+</body>
+</html>
