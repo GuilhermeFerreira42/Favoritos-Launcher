@@ -725,6 +725,7 @@
                     const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(fav.url)}`;
                     const favoriteElement = document.createElement('div');
                     favoriteElement.className = 'favorite-item';
+                    favoriteElement.draggable = true; // <-- ESSENCIAL PARA O DRAG-DROP DE FAVORITOS
                     favoriteElement.dataset.favoriteId = fav.id;
                     favoriteElement.dataset.url = fav.url;
                     favoriteElement.innerHTML = `
@@ -771,14 +772,7 @@
         let editState = { enabled: false, favoriteId: null };
         let activeGroupId = null;
 
-        // =================================================================
-        // LÓGICA DE DRAG AND DROP PARA GRUPOS
-        // =================================================================
-        let draggedGroup = null;
-        let placeholder = null;
-        let isDraggingGroup = false;
-        let dragOffsetX = 0, dragOffsetY = 0;
-
+        // Função auxiliar para encontrar dados de um grupo em qualquer nível
         function findGroupData(groupId, groupsArray) {
             for (let i = 0; i < groupsArray.length; i++) {
                 const group = groupsArray[i];
@@ -792,9 +786,17 @@
             }
             return null;
         }
+        
+        // =================================================================
+        // LÓGICA DE DRAG AND DROP PARA GRUPOS (Sistema com Pointer Events)
+        // =================================================================
+        let draggedGroup = null;
+        let placeholder = null;
+        let isDraggingGroup = false;
+        let dragOffsetX = 0, dragOffsetY = 0;
 
         groupsContainer.addEventListener('pointerdown', e => {
-            if (e.target.closest('.favorite-item')) return; 
+            if (e.target.closest('.favorite-item')) return; // Ignora se o clique for em um favorito
 
             const groupHeader = e.target.closest('.group-header');
             if (!groupHeader || e.button !== 0) return;
@@ -821,7 +823,6 @@
                 placeholder.style.width = `${rect.width}px`;
                 placeholder.style.height = `${rect.height}px`;
                 groupsContainer.insertBefore(placeholder, draggedGroup);
-
                 draggedGroup.classList.add('dragging-group');
                 draggedGroup.style.width = `${rect.width}px`;
                 document.body.appendChild(draggedGroup);
@@ -831,7 +832,6 @@
             draggedGroup.style.top = `${e.clientY - dragOffsetY}px`;
 
             document.querySelectorAll('.group.drop-target-group').forEach(g => g.classList.remove('drop-target-group'));
-            
             let dropTarget = e.target.closest('.group:not(.dragging-group)');
             if (dropTarget) {
                  dropTarget.classList.add('drop-target-group');
@@ -888,16 +888,77 @@
             }
             if(placeholder) placeholder.remove();
             document.querySelectorAll('.group.drop-target-group').forEach(g => g.classList.remove('drop-target-group'));
-            draggedGroup = null;
-            placeholder = null;
-            isDraggingGroup = false;
+            draggedGroup = null; placeholder = null; isDraggingGroup = false;
             document.removeEventListener('pointermove', onGroupPointerMove);
             document.removeEventListener('pointerup', onGroupPointerUp);
-            
             render();
         }
-        
-        // --- Lógica Geral de Eventos ---
+
+        // =================================================================
+        // LÓGICA DE DRAG AND DROP PARA FAVORITOS (Sistema com Draggable API) - RESTAURADO
+        // =================================================================
+        let draggedItem = null;
+        let sourceGroupId = null;
+
+        groupsContainer.addEventListener('dragstart', (e) => {
+            const favoriteItem = e.target.closest('.favorite-item');
+            if (favoriteItem) {
+                draggedItem = favoriteItem;
+                sourceGroupId = favoriteItem.closest('.group').dataset.groupId;
+                setTimeout(() => favoriteItem.classList.add('dragging'), 0);
+            }
+        });
+
+        groupsContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const targetGrid = e.target.closest('.favorites-grid');
+            if(targetGrid){
+                document.querySelectorAll('.favorites-grid.drag-over').forEach(grid => grid.classList.remove('drag-over'));
+                targetGrid.classList.add('drag-over');
+            }
+        });
+
+        groupsContainer.addEventListener('dragleave', (e) => {
+            const targetGrid = e.target.closest('.favorites-grid');
+            if (targetGrid) targetGrid.classList.remove('drag-over');
+        });
+
+        groupsContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const targetGroupElement = e.target.closest('.group');
+            if (!targetGroupElement || !draggedItem) return;
+
+            const targetGroupId = targetGroupElement.dataset.groupId;
+            const favoriteId = draggedItem.dataset.favoriteId;
+            
+            const sourceInfo = findGroupData(sourceGroupId, appData.groups);
+            const targetInfo = findGroupData(targetGroupId, appData.groups);
+            
+            if (!sourceInfo || !targetInfo) return;
+
+            const favIndex = sourceInfo.group.favorites.findIndex(f => f.id === favoriteId);
+            if(favIndex === -1) return;
+
+            const [favoriteToMove] = sourceInfo.group.favorites.splice(favIndex, 1);
+            if(!targetInfo.group.favorites) targetInfo.group.favorites = [];
+            targetInfo.group.favorites.push(favoriteToMove);
+            
+            saveData();
+            render();
+        });
+
+        groupsContainer.addEventListener('dragend', (e) => {
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+                document.querySelectorAll('.favorites-grid.drag-over').forEach(grid => grid.classList.remove('drag-over'));
+                draggedItem = null;
+                sourceGroupId = null;
+            }
+        });
+
+        // =================================================================
+        // LÓGICA GERAL DE EVENTOS E MENUS
+        // =================================================================
         window.addEventListener('click', (e) => {
             if (!contextMenu.contains(e.target) && !contextMenuBtn.contains(e.target)) contextMenu.classList.remove('show');
             if (!groupContextMenu.contains(e.target) && !e.target.classList.contains('group-context-btn')) groupContextMenu.classList.remove('show');
@@ -933,7 +994,6 @@
             contextMenu.classList.remove('show');
         });
 
-        // INÍCIO DO BLOCO RESTAURADO
         groupContextMenu.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
             if (!action || !activeGroupId) return;
@@ -956,7 +1016,6 @@
             render();
             groupContextMenu.classList.remove('show');
         });
-        // FIM DO BLOCO RESTAURADO
         
         groupsContainer.addEventListener('click', (e) => {
             const target = e.target;
