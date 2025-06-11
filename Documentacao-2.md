@@ -194,13 +194,13 @@ Os dados são armazenados no `localStorage` em JSON:
 ## 7. Checklist de Implementação
 
 ### Fase 1
-- [ ] Layout horizontal com scroll implementado.
-- [ ] Drag-and-drop de grupos e subgrupos funcional.
+- [x] Layout horizontal com scroll implementado.
+- [x] Drag-and-drop de grupos e subgrupos funcional.
 
 ### Fase 2
 - [ ] Barra de pesquisa aumentada.
 - [ ] Menu de contexto posicionado corretamente.
-- [ ] Efeito de vidro fosco aplicado.
+- [x] Efeito de vidro fosco aplicado.
 - [ ] Layout ajustado para mobile.
 
 ### Fase 3
