@@ -486,7 +486,7 @@
     <input type="file" id="wallpaper-input" class="hidden" accept="image/*">
     <input type="file" id="import-input" class="hidden" accept=".html,text/html">
 
-    <script>
+<script>
     // --- Funções de Exportação ---
     function generateExportHTML() {
         let htmlContent = `<!DOCTYPE html>
@@ -855,32 +855,40 @@
         // --- LÓGICA DE DRAG AND DROP (FASE 1 - PASSOS 2, 3 e 4) ---
         let draggedItem = null;
         let sourceGroupIdForFav = null;
-        let draggedGroupInfo = null; // Passo 2.3: Variável para info do grupo arrastado
+        let draggedGroupInfo = null;
 
+        // =================================================================
+        // CORREÇÃO CRÍTICA APLICADA AQUI
+        // =================================================================
         groupsContainer.addEventListener('dragstart', (e) => {
-            const favoriteItem = e.target.closest('.favorite-item');
-            const groupElement = e.target.closest('.group');
+            // Se o arrasto começar nos botões de ação, ele é prevenido.
+            if (e.target.closest('.group-header-actions button')) {
+                e.preventDefault();
+                return;
+            }
 
-            // Passo 2.2: Adaptar listeners para lidar com GRUPOS e FAVORITOS
+            const favoriteItem = e.target.closest('.favorite-item');
+            const groupHeader = e.target.closest('.group-header');
+
             if (favoriteItem) {
-                // Lógica existente para arrastar favoritos
+                // Lógica para arrastar favoritos (funcional)
                 draggedItem = favoriteItem;
-                sourceGroupIdForFav = groupElement.dataset.groupId;
+                sourceGroupIdForFav = e.target.closest('.group').dataset.groupId;
                 setTimeout(() => {
                     draggedItem.classList.add('dragging');
                 }, 0);
-            } else if (groupElement && e.target.classList.contains('group-header')) {
-                // Passo 2.3: Lógica para arrastar grupos
+            } else if (groupHeader) {
+                // Lógica CORRIGIDA para arrastar grupos.
+                // Agora o arrasto inicia se o clique for em qualquer lugar do cabeçalho.
+                const groupElement = groupHeader.closest('.group');
                 const groupId = groupElement.dataset.groupId;
-                draggedGroupInfo = findGroupById(groupId); // Armazena info do grupo e seu pai
+                draggedGroupInfo = findGroupById(groupId);
 
                 if (draggedGroupInfo) {
                     setTimeout(() => {
                         groupElement.classList.add('dragging');
                     }, 0);
                 }
-            } else {
-                e.preventDefault(); // Impede arrastar outras coisas
             }
         });
 
@@ -918,13 +926,13 @@
             const targetGroupElement = e.target.closest('.group');
 
             if (draggedGroupInfo) {
-                // --- Passo 3: Lógica de Drop para GRUPOS ---
+                // --- Lógica de Drop para GRUPOS ---
                 const sourceGroupData = draggedGroupInfo.group;
                 const sourceParentArray = draggedGroupInfo.parentArray;
                 const sourceIndex = draggedGroupInfo.index;
 
                 if (targetGroupElement && targetGroupElement.dataset.groupId !== sourceGroupData.id) {
-                    // --- Passo 3.2: Lógica para ANINHAR grupos ---
+                    // --- Lógica para ANINHAR grupos ---
                     if (isDescendant(sourceGroupData, targetGroupElement.dataset.groupId)) {
                         alert("Não é possível mover um grupo para dentro de si mesmo.");
                         return;
@@ -932,37 +940,41 @@
                     
                     const targetGroupInfo = findGroupById(targetGroupElement.dataset.groupId);
                     if (targetGroupInfo) {
-                        // 1. Remove da origem
                         sourceParentArray.splice(sourceIndex, 1);
-                        // 2. Adiciona ao destino
+                        if (!targetGroupInfo.group.subgroups) {
+                            targetGroupInfo.group.subgroups = []; // Garante que a propriedade exista
+                        }
                         targetGroupInfo.group.subgroups.push(sourceGroupData);
                     }
                 } else {
-                    // --- Passo 3.1: Lógica para REORDENAR grupos ---
+                    // --- Lógica para REORDENAR grupos ---
                     const dropContainer = e.target.closest('#groups-container, .subgroup-container');
                     if (dropContainer) {
                         const afterElement = [...dropContainer.children].find(child => e.clientX < child.getBoundingClientRect().left + child.offsetWidth / 2);
                         
-                        // 1. Remove da origem
                         sourceParentArray.splice(sourceIndex, 1);
                         
-                        let targetParentInfo;
-                        const targetParentGroupEl = dropContainer.closest('.group');
+                        let targetArray;
+                        const targetParentGroupEl = dropContainer.closest('.group:not(.dragging)');
 
                         if (targetParentGroupEl) { // Soltou num container de subgrupo
-                            targetParentInfo = findGroupById(targetParentGroupEl.dataset.groupId);
-                            const targetArray = targetParentInfo.group.subgroups;
-                            const targetIndex = afterElement ? [...dropContainer.children].indexOf(afterElement) : targetArray.length;
-                            targetArray.splice(targetIndex, 0, sourceGroupData);
+                            const targetParentInfo = findGroupById(targetParentGroupEl.dataset.groupId);
+                            if (!targetParentInfo.group.subgroups) targetParentInfo.group.subgroups = [];
+                            targetArray = targetParentInfo.group.subgroups;
                         } else { // Soltou no container principal
-                            const targetArray = appData.groups;
-                            const targetIndex = afterElement ? [...dropContainer.children].indexOf(afterElement) : targetArray.length;
+                            targetArray = appData.groups;
+                        }
+
+                        if (afterElement) {
+                            const afterElementId = afterElement.dataset.groupId;
+                            const targetIndex = targetArray.findIndex(g => g.id === afterElementId);
                             targetArray.splice(targetIndex, 0, sourceGroupData);
+                        } else {
+                            targetArray.push(sourceGroupData);
                         }
                     }
                 }
 
-                // --- Passo 4: Atualização e Persistência ---
                 saveData();
                 render();
 
@@ -995,7 +1007,7 @@
                 document.querySelectorAll('.favorites-grid.drag-over').forEach(grid => grid.classList.remove('drag-over'));
             }
             if (draggedGroupInfo) {
-                const groupElement = document.querySelector(`[data-group-id="${draggedGroupInfo.group.id}"]`);
+                const groupElement = document.querySelector(`.group.dragging`);
                 if(groupElement) groupElement.classList.remove('dragging');
                 draggedGroupInfo = null;
             }
@@ -1192,5 +1204,6 @@
         });
     });
     </script>
+
 </body>
 </html>
