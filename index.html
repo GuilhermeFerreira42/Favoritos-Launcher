@@ -535,46 +535,52 @@
 
     // --- Camada de Lógica e Persistência ---
     const defaultData = {
-    "groups": [
-        {
-        "id": "group1",
-        "name": "FERRAMENTAS DE IA",
-        "favorites": [
-            { "id": "fav1", "name": "Perplexity AI", "url": "https://www.perplexity.ai/"  },
-            { "id": "fav2", "name": "Grok Beta", "url": "https://grok.x.ai/"  },
-            { "id": "fav3", "name": "Claude", "url": "https://claude.ai/"  },
-            { "id": "fav4", "name": "Google Gemini", "url": "https://gemini.google.com/"  },
-            { "id": "fav5", "name": "ChatGPT", "url": "https://chat.openai.com/"  }
+        "groups": [
+            {
+                "id": "group1",
+                "name": "FERRAMENTAS DE IA",
+                "favorites": [
+                    { "id": "fav1", "name": "Perplexity AI", "url": "https://www.perplexity.ai/"  },
+                    { "id": "fav2", "name": "Grok Beta", "url": "https://grok.x.ai/"  },
+                    { "id": "fav3", "name": "Claude", "url": "https://claude.ai/"  },
+                    { "id": "fav4", "name": "Google Gemini", "url": "https://gemini.google.com/"  },
+                    { "id": "fav5", "name": "ChatGPT", "url": "https://chat.openai.com/"  }
+                ],
+                "subgroups": []
+            },
+            {
+                "id": "group2",
+                "name": "TRABALHO",
+                "favorites": [
+                    { "id": "fav6", "name": "Google Drive", "url": "https://drive.google.com/"  },
+                    { "id": "fav7", "name": "GitHub", "url": "https://github.com/"  },
+                    { "id": "fav8", "name": "Figma", "url": "https://www.figma.com/"  },
+                    { "id": "fav9", "name": "Trello", "url": "https://trello.com/"  }
+                ],
+                "subgroups": []
+            },
+            {
+                "id": "group3",
+                "name": "MÍDIA E ENTRETENIMENTO",
+                "favorites": [
+                    { "id": "fav10", "name": "YouTube", "url": "https://www.youtube.com/"  },
+                    { "id": "fav11", "name": "Netflix", "url": "https://www.netflix.com/"  },
+                    { "id": "fav12", "name": "Spotify", "url": "https://www.spotify.com/"  }
+                ],
+                "subgroups": []
+            }
         ],
-        "subgroups": []
-        },
-        {
-        "id": "group2",
-        "name": "TRABALHO",
-        "favorites": [
-            { "id": "fav6", "name": "Google Drive", "url": "https://drive.google.com/"  },
-            { "id": "fav7", "name": "GitHub", "url": "https://github.com/"  },
-            { "id": "fav8", "name": "Figma", "url": "https://www.figma.com/"  },
-            { "id": "fav9", "name": "Trello", "url": "https://trello.com/"  }
-        ],
-        "subgroups": []
-        },
-        {
-        "id": "group3",
-        "name": "MÍDIA E ENTRETENIMENTO",
-        "favorites": [
-            { "id": "fav10", "name": "YouTube", "url": "https://www.youtube.com/"  },
-            { "id": "fav11", "name": "Netflix", "url": "https://www.netflix.com/"  },
-            { "id": "fav12", "name": "Spotify", "url": "https://www.spotify.com/"  }
-        ],
-        "subgroups": []
-        }
-    ],
-    "background": null
+        "background": null
     };
-    
+
     let appData = {};
-    
+    let draggedItem = null;
+    let draggedGroupInfo = null;
+    let sourceGroupIdForFav = null;
+    let currentGroupId = null;
+    let editState = { enabled: false, favoriteId: null };
+    let activeGroupId = null;
+
     function loadData() {
         const savedData = localStorage.getItem('launcherFavorites');
         if (savedData) {
@@ -610,8 +616,8 @@
             applyWallpaper();
         };
         reader.readAsDataURL(file);
-    }    
-    
+    }
+
     function openWallpaperSelector() {
         document.getElementById('wallpaper-input').click();
     }
@@ -667,7 +673,6 @@
         const groups = [];
         const topLevelFolders = tree.filter(item => item.type === 'folder');
         const topLevelBookmarks = tree.filter(item => item.type === 'bookmark');
-        
         if (topLevelBookmarks.length > 0) {
             groups.push({
                 id: `group-${Date.now()}-root`,
@@ -680,7 +685,6 @@
                 subgroups: []
             });
         }
-        
         topLevelFolders.forEach(folder => {
             groups.push(convertFolderToGroup(folder, `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`));
         });
@@ -694,7 +698,6 @@
             favorites: [],
             subgroups: []
         };
-        
         folder.children.forEach(child => {
             if (child.type === 'bookmark') {
                 group.favorites.push({
@@ -733,12 +736,8 @@
     function openImportSelector() {
         document.getElementById('import-input').click();
     }
-    
-    // --- Funções Auxiliares para Manipulação de Grupos (PASSO 3) ---
-    /**
-     * Encontra um grupo (ou subgrupo) por ID em toda a árvore de dados.
-     * Retorna o objeto do grupo e o array pai onde ele está contido.
-     */
+
+    // --- Funções Auxiliares para Manipulação de Grupos ---
     function findGroupById(id, groups = appData.groups) {
         for (let i = 0; i < groups.length; i++) {
             const group = groups[i];
@@ -755,10 +754,6 @@
         return null;
     }
 
-    /**
-     * Verifica se um grupo alvo é descendente de um grupo de origem.
-     * Essencial para evitar mover um grupo para dentro de si mesmo.
-     */
     function isDescendant(sourceGroup, targetId) {
         if (sourceGroup.id === targetId) return true;
         if (sourceGroup.subgroups && sourceGroup.subgroups.length > 0) {
@@ -771,6 +766,21 @@
         return false;
     }
 
+    // --- Função auxiliar para determinar posição de drop ---
+    function getDragAfterElement(container, x) {
+        const draggableElements = [...container.children].filter(child => 
+            !child.classList.contains('dragging') && child.classList.contains('group')
+        );
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = x - box.left - box.width / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
 
     // --- Camada de Apresentação ---
     function renderHierarquia(groups, container) {
@@ -778,8 +788,6 @@
             const groupElement = document.createElement('section');
             groupElement.className = group.subgroups.length > 0 ? 'group has-subgroups' : 'group';
             groupElement.dataset.groupId = group.id;
-
-            // Passo 2.1: Tornar os grupos "arrastáveis"
             groupElement.draggable = true;
             
             groupElement.innerHTML = `
@@ -812,21 +820,22 @@
                     </a>
                     <span class="name">${fav.name}</span>
                 `;
+                
                 favoritesGrid.appendChild(favoriteElement);
             });
-            
+
             if (group.subgroups && group.subgroups.length > 0) {
                 const subgroupContainer = groupElement.querySelector('.subgroup-container');
                 renderHierarquia(group.subgroups, subgroupContainer);
             }
-            
+
             container.appendChild(groupElement);
         });
     }
 
     function render() {
         const groupsContainer = document.getElementById('groups-container');
-        groupsContainer.innerHTML = ''; // Limpa a tela antes de renderizar
+        groupsContainer.innerHTML = '';
         if (!appData.groups) return;
         renderHierarquia(appData.groups, groupsContainer);
     }
@@ -836,7 +845,7 @@
         loadData();
         render();
         applyWallpaper();
-        
+
         const groupsContainer = document.getElementById('groups-container');
         const searchBar = document.getElementById('search-bar');
         const modal = document.getElementById('add-favorite-modal');
@@ -847,43 +856,27 @@
         const groupContextMenu = document.getElementById('group-context-menu');
         const wallpaperInput = document.getElementById('wallpaper-input');
         const importInput = document.getElementById('import-input');
-        
-        let currentGroupId = null;
-        let editState = { enabled: false, favoriteId: null };
-        let activeGroupId = null;
-        
-        // --- LÓGICA DE DRAG AND DROP (FASE 1 - PASSOS 2, 3 e 4) ---
-        let draggedItem = null;
-        let sourceGroupIdForFav = null;
-        let draggedGroupInfo = null;
 
-        // =================================================================
-        // CORREÇÃO CRÍTICA APLICADA AQUI
-        // =================================================================
+        // --- Event Listeners ---
         groupsContainer.addEventListener('dragstart', (e) => {
-            // Se o arrasto começar nos botões de ação, ele é prevenido.
             if (e.target.closest('.group-header-actions button')) {
                 e.preventDefault();
                 return;
             }
-
+            
             const favoriteItem = e.target.closest('.favorite-item');
             const groupHeader = e.target.closest('.group-header');
-
+            
             if (favoriteItem) {
-                // Lógica para arrastar favoritos (funcional)
                 draggedItem = favoriteItem;
                 sourceGroupIdForFav = e.target.closest('.group').dataset.groupId;
                 setTimeout(() => {
                     draggedItem.classList.add('dragging');
                 }, 0);
             } else if (groupHeader) {
-                // Lógica CORRIGIDA para arrastar grupos.
-                // Agora o arrasto inicia se o clique for em qualquer lugar do cabeçalho.
                 const groupElement = groupHeader.closest('.group');
                 const groupId = groupElement.dataset.groupId;
                 draggedGroupInfo = findGroupById(groupId);
-
                 if (draggedGroupInfo) {
                     setTimeout(() => {
                         groupElement.classList.add('dragging');
@@ -894,24 +887,37 @@
 
         groupsContainer.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const targetGroup = e.target.closest('.group');
             document.querySelectorAll('.group.over').forEach(g => g.classList.remove('over'));
-
-            if (draggedGroupInfo && targetGroup) {
-                // Lógica para aninhamento (feedback visual)
-                if (draggedGroupInfo.group.id !== targetGroup.dataset.groupId) {
-                    targetGroup.classList.add('over');
+            
+            if (draggedGroupInfo) {
+                const nestingTarget = e.target.closest('.group:not(.dragging) .group-header');
+                const dropContainer = e.target.closest('#groups-container, .subgroup-container'); 
+                
+                if (nestingTarget) {
+                    const targetGroupElement = nestingTarget.closest('.group');
+                    if (!isDescendant(draggedGroupInfo.group, targetGroupElement.dataset.groupId)) {
+                        targetGroupElement.classList.add('over');
+                    }
+                } else if (dropContainer) {
+                    const afterElement = getDragAfterElement(dropContainer, e.clientX);
+                    const draggedElement = document.querySelector('.group.dragging');
+                    if (draggedElement) {
+                        if (afterElement) {
+                            dropContainer.insertBefore(draggedElement, afterElement);
+                        } else {
+                            dropContainer.appendChild(draggedElement);
+                        }
+                    }
                 }
             } else if (draggedItem) {
-                 // Lógica para favoritos (feedback visual)
                 const targetGrid = e.target.closest('.favorites-grid');
                 if (targetGrid) {
-                     document.querySelectorAll('.favorites-grid.drag-over').forEach(grid => grid.classList.remove('drag-over'));
-                     targetGrid.classList.add('drag-over');
+                    document.querySelectorAll('.favorites-grid.drag-over').forEach(grid => grid.classList.remove('drag-over'));
+                    targetGrid.classList.add('drag-over');
                 }
             }
         });
-        
+
         groupsContainer.addEventListener('dragleave', (e) => {
             const targetGroup = e.target.closest('.group');
             if (targetGroup) {
@@ -923,73 +929,62 @@
             e.preventDefault();
             document.querySelectorAll('.group.over').forEach(g => g.classList.remove('over'));
             
-            const targetGroupElement = e.target.closest('.group');
-
             if (draggedGroupInfo) {
-                // --- Lógica de Drop para GRUPOS ---
                 const sourceGroupData = draggedGroupInfo.group;
                 const sourceParentArray = draggedGroupInfo.parentArray;
                 const sourceIndex = draggedGroupInfo.index;
-
-                if (targetGroupElement && targetGroupElement.dataset.groupId !== sourceGroupData.id) {
-                    // --- Lógica para ANINHAR grupos ---
+                
+                const nestingTarget = e.target.closest('.group:not(.dragging) .group-header');
+                
+                if (nestingTarget) {
+                    const targetGroupElement = nestingTarget.closest('.group');
                     if (isDescendant(sourceGroupData, targetGroupElement.dataset.groupId)) {
                         alert("Não é possível mover um grupo para dentro de si mesmo.");
+                        render();
                         return;
                     }
                     
                     const targetGroupInfo = findGroupById(targetGroupElement.dataset.groupId);
                     if (targetGroupInfo) {
                         sourceParentArray.splice(sourceIndex, 1);
-                        if (!targetGroupInfo.group.subgroups) {
-                            targetGroupInfo.group.subgroups = []; // Garante que a propriedade exista
-                        }
+                        if (!targetGroupInfo.group.subgroups) targetGroupInfo.group.subgroups = [];
                         targetGroupInfo.group.subgroups.push(sourceGroupData);
                     }
                 } else {
-                    // --- Lógica para REORDENAR grupos ---
-                    const dropContainer = e.target.closest('#groups-container, .subgroup-container');
+                    const draggedElement = document.querySelector('.group.dragging');
+                    const dropContainer = draggedElement ? draggedElement.parentElement : null;
+                    
                     if (dropContainer) {
-                        const afterElement = [...dropContainer.children].find(child => e.clientX < child.getBoundingClientRect().left + child.offsetWidth / 2);
-                        
+                        const newIndex = [...dropContainer.children].indexOf(draggedElement);
                         sourceParentArray.splice(sourceIndex, 1);
                         
                         let targetArray;
-                        const targetParentGroupEl = dropContainer.closest('.group:not(.dragging)');
-
-                        if (targetParentGroupEl) { // Soltou num container de subgrupo
+                        const targetParentGroupEl = dropContainer.closest('.group');
+                        
+                        if (targetParentGroupEl) {
                             const targetParentInfo = findGroupById(targetParentGroupEl.dataset.groupId);
                             if (!targetParentInfo.group.subgroups) targetParentInfo.group.subgroups = [];
                             targetArray = targetParentInfo.group.subgroups;
-                        } else { // Soltou no container principal
+                        } else {
                             targetArray = appData.groups;
                         }
-
-                        if (afterElement) {
-                            const afterElementId = afterElement.dataset.groupId;
-                            const targetIndex = targetArray.findIndex(g => g.id === afterElementId);
-                            targetArray.splice(targetIndex, 0, sourceGroupData);
-                        } else {
-                            targetArray.push(sourceGroupData);
-                        }
+                        
+                        targetArray.splice(newIndex, 0, sourceGroupData);
                     }
                 }
-
+                
                 saveData();
                 render();
-
             } else if (draggedItem) {
-                // Lógica de drop para FAVORITOS (existente)
                 if (!targetGroupElement) return;
                 const targetGroupId = targetGroupElement.dataset.groupId;
                 const favoriteId = draggedItem.dataset.favoriteId;
-                
                 const sourceGroupInfo = findGroupById(sourceGroupIdForFav);
                 const favoriteIndex = sourceGroupInfo.group.favorites.findIndex(f => f.id === favoriteId);
+                
                 if (favoriteIndex === -1) return;
                 
                 const [favoriteToMove] = sourceGroupInfo.group.favorites.splice(favoriteIndex, 1);
-                
                 const targetGroupInfo = findGroupById(targetGroupId);
                 targetGroupInfo.group.favorites.push(favoriteToMove);
                 
@@ -999,16 +994,16 @@
         });
 
         groupsContainer.addEventListener('dragend', (e) => {
-            // Limpa o estado e as classes visuais
             if (draggedItem) {
                 draggedItem.classList.remove('dragging');
                 draggedItem = null;
                 sourceGroupIdForFav = null;
                 document.querySelectorAll('.favorites-grid.drag-over').forEach(grid => grid.classList.remove('drag-over'));
             }
+            
             if (draggedGroupInfo) {
                 const groupElement = document.querySelector(`.group.dragging`);
-                if(groupElement) groupElement.classList.remove('dragging');
+                if (groupElement) groupElement.classList.remove('dragging');
                 draggedGroupInfo = null;
             }
         });
@@ -1085,7 +1080,7 @@
             const groupInfo = findGroupById(activeGroupId);
             if (!groupInfo) return;
             const group = groupInfo.group;
-
+            
             if (action === 'rename-group') {
                 const newName = prompt('Digite o novo nome para o grupo:', group.name);
                 if (newName && newName.trim()) {
@@ -1125,15 +1120,18 @@
         });
 
         closeModalBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => { e.target === modal && closeModal(); });
+        modal.addEventListener('click', (e) => { 
+            e.target === modal && closeModal(); 
+        });
         
         addFavoriteForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const name = document.getElementById('favorite-name').value;
             const url = document.getElementById('favorite-url').value;
             const groupInfo = findGroupById(currentGroupId);
+            
             if (!groupInfo) return;
-
+            
             if (editState.enabled) {
                 const favorite = groupInfo.group.favorites.find(f => f.id === editState.favoriteId);
                 if (favorite) {
@@ -1144,6 +1142,7 @@
                 const newFavorite = { id: 'fav' + Date.now(), name, url };
                 groupInfo.group.favorites.push(newFavorite);
             }
+            
             saveData();
             render();
             closeModal();
@@ -1152,20 +1151,21 @@
         groupsContainer.addEventListener('click', (e) => {
             const target = e.target;
             const groupElement = target.closest('.group');
+            
             if (!groupElement) return;
+            
             const groupId = groupElement.dataset.groupId;
-
+            
             if (target.classList.contains('add-favorite-btn')) {
                 openModal(groupId);
                 return;
             }
-
+            
             if (target.classList.contains('group-context-btn')) {
                 e.stopPropagation();
                 activeGroupId = groupId;
                 document.querySelectorAll('.group').forEach(g => g.classList.remove('selected'));
                 groupElement.classList.add('selected');
-                
                 const rect = target.getBoundingClientRect();
                 contextMenu.classList.remove('show');
                 groupContextMenu.style.top = `${rect.bottom + window.scrollY}px`;
@@ -1173,13 +1173,13 @@
                 groupContextMenu.classList.add('show');
                 return;
             }
-
+            
             const favoriteElement = target.closest('.favorite-item');
             if (!favoriteElement) return;
-
+            
             const groupInfo = findGroupById(groupId);
             if (!groupInfo) return;
-
+            
             if (target.classList.contains('edit-fav-btn')) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1195,15 +1195,14 @@
                     render();
                 }
             } else {
-                 // Abre o link se clicar no favorito (mas não nos botões de ação)
-                 const link = favoriteElement.querySelector('a');
-                 if (link && link.href) {
+                const link = favoriteElement.querySelector('a');
+                if (link && link.href) {
                     window.open(link.href, '_blank');
-                 }
+                }
             }
         });
     });
-    </script>
+</script>
 
 </body>
 </html>
