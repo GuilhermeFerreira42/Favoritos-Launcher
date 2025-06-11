@@ -268,33 +268,34 @@ Este é o núcleo do desafio. O evento `drop` precisará de uma lógica condicio
 
 ----
 
-1. **Adaptação do Layout**
-   - [ ] Alterar o estilo do `#groups-container` para `display: flex` com `overflow-x: auto`.
-   - [ ] Adicionar padding ao contêiner para evitar que os grupos fiquem colados nas bordas.
-   - [ ] Definir uma altura mínima (`min-height`) para garantir que a área de scroll funcione bem.
 
-2. **Habilitar o Drag-and-Drop nos Grupos**
-   - [ ] Tornar os grupos arrastáveis adicionando `draggable="true"` ao elemento principal de cada grupo (`.group`).
-   - [ ] Adaptar os event listeners de drag-and-drop para gerenciar o arrasto de um `.group`.
-   - [ ] No evento `dragstart`, identificar o grupo que está sendo arrastado e armazenar seu `groupId` e localização original.
+### Checklist da Fase 1 (Concluído)
 
-3. **Implementar a Lógica de "Soltar" (Drop)**
-   - [ ] Implementar a lógica para reordenar grupos na horizontal.
-     - [ ] Detectar a posição do mouse no momento do drop.
-     - [ ] Calcular o índice do array para a nova posição.
-     - [ ] Remover o grupo de sua posição original no `appData`.
-     - [ ] Inserir o grupo na nova posição usando `Array.prototype.splice()`.
-   - [ ] Implementar a lógica para aninhar grupos.
-     - [ ] Identificar os `groupId` do grupo de origem e do grupo de destino.
-     - [ ] Validar para impedir que um grupo seja arrastado para dentro de um de seus próprios subgrupos.
-     - [ ] Remover o grupo de origem de seu array pai no `appData`.
-     - [ ] Adicionar o objeto do grupo de origem ao array de subgrupos do grupo de destino.
+1.  **Adaptação do Layout**
+    * `[x]` Alterar o estilo do `#groups-container` para `display: flex` com `overflow-x: auto`.
+    * `[x]` Adicionar padding ao contêiner para evitar que os grupos fiquem colados nas bordas.
+    * `[x]` Definir uma altura mínima (`min-height`) para garantir que a área de scroll funcione bem.
 
-4. **Atualização e Persistência**
-   - [ ] Chamar a função `saveData()` para persistir a nova estrutura de dados no `localStorage`.
-   - [ ] Chamar a função `render()` para redesenhar a interface com os dados atualizados.
+2.  **Habilitar o Drag-and-Drop nos Grupos**
+    * `[x]` Tornar os grupos arrastáveis adicionando `draggable="true"` ao elemento principal de cada grupo (`.group`).
+    * `[x]` Adaptar os event listeners de drag-and-drop para gerenciar o arrasto de um `.group`.
+    * `[x]` No evento `dragstart`, identificar o grupo que está sendo arrastado e armazenar seu `groupId` e localização original.
 
-Esse checklist pode ser utilizado para acompanhar o progresso das tarefas na implementação da Fase 1.
+3.  **Implementar a Lógica de "Soltar" (Drop)**
+    * `[x]` Implementar a lógica para reordenar grupos na horizontal.
+        * `[x]` Detectar a posição do mouse no momento do drop.
+        * `[x]` Calcular o índice do array para a nova posição.
+        * `[x]` Remover o grupo de sua posição original no `appData`.
+        * `[x]` Inserir o grupo na nova posição usando `Array.prototype.splice()`.
+    * `[x]` Implementar a lógica para aninhar grupos.
+        * `[x]` Identificar os `groupId` do grupo de origem e do grupo de destino.
+        * `[x]` Validar para impedir que um grupo seja arrastado para dentro de um de seus próprios subgrupos.
+        * `[x]` Remover o grupo de origem de seu array pai no `appData`.
+        * `[x]` Adicionar o objeto do grupo de origem ao array de subgrupos do grupo de destino.
+
+4.  **Atualização e Persistência**
+    * `[x]` Chamar a função `saveData()` para persistir a nova estrutura de dados no `localStorage`.
+    * `[x]` Chamar a função `render()` para redesenhar a interface com os dados atualizados.
 
 ----------------------------------------------------------------------------------------------------------------------------
 
