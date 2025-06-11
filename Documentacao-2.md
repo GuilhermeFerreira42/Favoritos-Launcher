@@ -189,125 +189,23 @@ Os dados são armazenados no `localStorage` em JSON:
 - **Usabilidade:** Feedback visual no drag-and-drop e hover ajustado melhoram a interação (**RNF06**).
 - **Responsividade:** Layout horizontal em desktop e empilhado em mobile (**RNF02**).
 
-----------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 7. Checklist de Implementação
 
 ### Fase 1
 - [ ] Layout horizontal com scroll implementado.
 - [ ] Drag-and-drop de grupos e subgrupos funcional.
-- Aqui está um checklist das tarefas para a "Fase 1":
-
-### Análise Estratégica da Fase 1
-
-**Objetivo Central:** Transformar o layout vertical em uma interface horizontal, estilo Trello/Kanban, e implementar a funcionalidade de arrastar e soltar (drag-and-drop) para os grupos e subgrupos.
-
-#### 1\. Análise de Viabilidade
-
-[cite\_start]A implementação dos requisitos da Fase 1 é **totalmente viável** com a estrutura atual do projeto (HTML, CSS e JavaScript puro, sem dependências externas). [cite: 2]
-
-  * **Layout Horizontal (RF19):** É uma alteração de baixa complexidade, que pode ser alcançada primariamente com CSS. A estrutura HTML existente é perfeitamente adaptável.
-  * **Drag-and-Drop de Grupos (RF17, RF18):** Esta é a parte mais complexa, mas é factível. O JavaScript puro oferece todas as ferramentas necessárias através da API nativa de Drag and Drop. [cite\_start]O principal desafio não está na tecnologia, mas na lógica de manipulação da estrutura de dados (`appData`) para refletir as ações do usuário de forma correta e persistente. [cite: 174, 182]
-
-#### 2\. Estimativa de Custos e Esforços
-
-Vamos dividir o esforço em categorias:
-
-| Tarefa | Requisito(s) | Esforço Estimado | Detalhes |
-| :--- | :--- | :--- | :--- |
-| **Layout Horizontal com Scroll** | [cite\_start]RF19 [cite: 161] | **Baixo** | [cite\_start]Envolve principalmente a alteração de propriedades CSS no contêiner principal (`#groups-container`). [cite: 195] O impacto no JavaScript é mínimo ou nulo nesta etapa. |
-| **Drag-and-Drop de Grupos** | [cite\_start]RF17, RF18 [cite: 159, 160] | **Alto** | Esta é a tarefa de maior custo. Exige lógica complexa em JavaScript para: \<br\> 1. Identificar o grupo sendo arrastado. \<br\> 2. Detectar o alvo (outro grupo para aninhar, ou o espaço entre grupos para reordenar). \<br\> 3. Prevenir ações inválidas (ex: arrastar um grupo para dentro de si mesmo). [cite\_start]\<br\> 4. Manipular com precisão o array `appData.groups` e os `subgroups` aninhados. [cite: 182] \<br\> 5. Fornecer feedback visual claro para o usuário. |
-| **Feedback Visual (CSS)** | [cite\_start]RF17, RF18 [cite: 159, 160] | **Médio** | Criar os estilos para indicar que um grupo está sendo arrastado, para destacar um alvo válido (efeito `hover` no grupo de destino) e para mostrar um "placeholder" de onde o grupo será inserido na reordenação. |
-
-**Conclusão do Esforço:** A maior parte do trabalho (cerca de 80%) estará concentrada no desenvolvimento da lógica de JavaScript para o drag-and-drop, enquanto os 20% restantes serão para ajustes de CSS e feedback visual.
-
-#### 3\. Estratégia de Implementação (Plano de Ação)
-
-A seguir, uma estratégia passo a passo para abordar a Fase 1 sem gerar o código ainda.
-
-**Passo 1: Adaptação do Layout (A Vitória Rápida)**
-
-1.  **Alterar CSS:** A primeira ação é modificar o estilo do `#groups-container`. [cite\_start]A sugestão da sua própria documentação é o caminho ideal: mudar de `display: grid` para `display: flex` com `overflow-x: auto`. [cite: 195, 267]
-2.  **Ajustes Adicionais:** Pode ser necessário adicionar um `padding` ao contêiner para que os grupos não fiquem colados nas bordas e definir uma altura mínima (`min-height`) para garantir que a área de scroll funcione bem.
-
-**Passo 2: Habilitar o Drag-and-Drop nos Grupos**
-
-1.  [cite\_start]**Tornar Grupos "Arrastáveis":** Na função que renderiza os grupos (`renderHierarquia`), adicione o atributo `draggable="true"` ao elemento principal de cada grupo (`.group`). [cite: 393]
-2.  [cite\_start]**Expandir os Event Listeners:** Os listeners de drag-and-drop existentes, que hoje funcionam para os favoritos (`.favorite-item`), precisarão ser adaptados para também identificar e gerenciar o arrasto de um `.group`. [cite: 431]
-3.  **Gerenciamento de Estado:** No evento `dragstart`, será crucial identificar que é um `.group` que está sendo arrastado e armazenar seu `groupId` e sua localização original (o array pai, seja `appData.groups` ou um `subgroups` aninhado) em uma variável de estado.
-
-**Passo 3: Implementar a Lógica de "Soltar" (Drop)**
-
-Este é o núcleo do desafio. O evento `drop` precisará de uma lógica condicional para diferenciar duas intenções do usuário:
-
-  * [cite\_start]**Intenção A: Reordenar na Horizontal (RF18)** [cite: 160]
-
-      * **Detecção:** Ocorre quando o usuário solta um grupo no contêiner principal (`#groups-container`) ou em um contêiner de subgrupo, mas *não diretamente em cima* de outro grupo.
-      * **Lógica:**
-        1.  Identificar a posição do mouse no momento do `drop`.
-        2.  Calcular em qual "índice" do array o grupo deve ser inserido com base nos elementos irmãos.
-        3.  Remover o grupo de sua posição original no `appData`.
-        4.  Inserir o grupo na nova posição usando `Array.prototype.splice()`.
-
-  * [cite\_start]**Intenção B: Aninhar Grupos (Transformar em Subgrupo - RF17)** [cite: 159]
-
-      * **Detecção:** Ocorre quando o usuário solta um grupo *diretamente em cima* de outro elemento `.group`.
-      * **Lógica:**
-        1.  Identificar o `groupId` do grupo de origem (o que foi arrastado) e do grupo de destino (onde foi solto).
-        2.  **Validação:** Implementar uma verificação para impedir que um grupo seja arrastado para dentro de um de seus próprios subgrupos (prevenção de referência circular).
-        3.  Remover o grupo de origem de seu array pai no `appData`.
-        4.  [cite\_start]Adicionar o objeto do grupo de origem ao array `subgroups` do grupo de destino. [cite: 182]
-
-**Passo 4: Atualização e Persistência**
-
-1.  Após qualquer operação de `drop` bem-sucedida, as duas funções mais importantes devem ser chamadas em sequência:
-      * [cite\_start]`saveData()`: Para persistir a nova estrutura de dados no `localStorage`. [cite: 352]
-      * [cite\_start]`render()`: Para limpar a tela e redesenhar a interface a partir dos dados atualizados, mostrando a nova ordem ou o novo aninhamento. [cite: 422]
-
-**Conclusão da Estratégia:** A abordagem incremental, começando pelo CSS e depois construindo a lógica de drag-and-drop em camadas (primeiro habilitando, depois diferenciando as ações de reordenar e aninhar), é a mais segura e organizada para garantir que a funcionalidade seja robusta e funcione como esperado.
-
-----
-
-
-### Checklist da Fase 1 (Concluído)
-
-1.  **Adaptação do Layout**
-    * `[x]` Alterar o estilo do `#groups-container` para `display: flex` com `overflow-x: auto`.
-    * `[x]` Adicionar padding ao contêiner para evitar que os grupos fiquem colados nas bordas.
-    * `[x]` Definir uma altura mínima (`min-height`) para garantir que a área de scroll funcione bem.
-
-2.  **Habilitar o Drag-and-Drop nos Grupos**
-    * `[x]` Tornar os grupos arrastáveis adicionando `draggable="true"` ao elemento principal de cada grupo (`.group`).
-    * `[x]` Adaptar os event listeners de drag-and-drop para gerenciar o arrasto de um `.group`.
-    * `[x]` No evento `dragstart`, identificar o grupo que está sendo arrastado e armazenar seu `groupId` e localização original.
-
-3.  **Implementar a Lógica de "Soltar" (Drop)**
-    * `[x]` Implementar a lógica para reordenar grupos na horizontal.
-        * `[x]` Detectar a posição do mouse no momento do drop.
-        * `[x]` Calcular o índice do array para a nova posição.
-        * `[x]` Remover o grupo de sua posição original no `appData`.
-        * `[x]` Inserir o grupo na nova posição usando `Array.prototype.splice()`.
-    * `[x]` Implementar a lógica para aninhar grupos.
-        * `[x]` Identificar os `groupId` do grupo de origem e do grupo de destino.
-        * `[x]` Validar para impedir que um grupo seja arrastado para dentro de um de seus próprios subgrupos.
-        * `[x]` Remover o grupo de origem de seu array pai no `appData`.
-        * `[x]` Adicionar o objeto do grupo de origem ao array de subgrupos do grupo de destino.
-
-4.  **Atualização e Persistência**
-    * `[x]` Chamar a função `saveData()` para persistir a nova estrutura de dados no `localStorage`.
-    * `[x]` Chamar a função `render()` para redesenhar a interface com os dados atualizados.
-
-----------------------------------------------------------------------------------------------------------------------------
 
 ### Fase 2
 - [ ] Barra de pesquisa aumentada.
 - [ ] Menu de contexto posicionado corretamente.
-- [x] Efeito de vidro fosco aplicado.
+- [ ] Efeito de vidro fosco aplicado.
 - [ ] Layout ajustado para mobile.
 
 ### Fase 3
 - [ ] Clicabilidade dos ícones aprimorada.
-- [x] CRUD de favoritos corrigido.
+- [ ] CRUD de favoritos corrigido.
 - [ ] CRUD adicionado aos subgrupos.
 
 ### Fase 4
