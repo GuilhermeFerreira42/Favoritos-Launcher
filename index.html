@@ -35,8 +35,8 @@
 
         /* --- Estrutura Principal --- */
         .container {
-            max-width: 1400px;
-            margin: 0 auto; 
+            /* max-width: 1400px; */ /* REMOVA OU COMENTE ESTA LINHA */
+            margin: 0;             /* Ajuste a margem para 0 */
             padding: 2rem;
         }
 
@@ -100,8 +100,11 @@
             -webkit-backdrop-filter: blur(10px); 
             transition: border-color 0.2s ease, opacity 0.2s ease;
             width: 320px;
-            flex-shrink: 0; /* Impede que o grupo encolha */
-            align-self: flex-start; /* Alinha os grupos no topo do container flex */
+            flex-shrink: 0; 
+            align-self: flex-start; 
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 10rem); /* Define a altura máxima (100% da altura da tela menos 10rem de margem) */
         }
         
         .group.drop-target-group {
@@ -165,11 +168,14 @@
             background-color: rgba(255, 255, 255, 0.2);
         }
 
-        /* --- Grade de Favoritos --- */
         .favorites-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
             gap: 1.5rem; 
+            /* ...propriedades existentes... */
+            overflow-y: auto;  /* A propriedade chave: cria a barra de rolagem vertical apenas quando necessário */
+            overflow-x: hidden; /* Evita uma barra de rolagem horizontal indesejada */
+            flex-grow: 1;      /* Faz a grade se expandir para preencher a altura disponível no .group */
         }
 
         .favorite-item {
@@ -428,6 +434,37 @@
             border-radius: 12px; 
         }
         
+        /* --- Estilização da Barra de Rolagem Personalizada --- */
+
+        /* Para navegadores baseados em WebKit (Chrome, Edge, Safari) */
+        ::-webkit-scrollbar {
+            width: 8px;  /* Largura da barra de rolagem vertical */
+            height: 8px; /* Altura da barra de rolagem horizontal */
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(17, 24, 39, 0.3); /* Fundo da trilha, um pouco mais claro que o fundo principal */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3); /* Cor do marcador arrastável */
+            border-radius: 10px;
+            border: 2px solid transparent; /* Cria um preenchimento falso */
+            background-clip: content-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.5); /* Cor ao passar o mouse */
+        }
+
+        /* Para Firefox */
+        /* Aplicamos aos elementos que podem ter rolagem no nosso sistema */
+        #groups-container, .favorites-grid {
+            scrollbar-width: thin; /* Deixa a barra mais fina */
+            scrollbar-color: rgba(255, 255, 255, 0.3) rgba(17, 24, 39, 0.3); /* Cor do marcador e da trilha */
+        }
+
     </style>
 </head>
 <body>
@@ -964,15 +1001,25 @@
             if (!groupContextMenu.contains(e.target) && !e.target.classList.contains('group-context-btn')) groupContextMenu.classList.remove('show');
         });
 
-        contextMenuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            groupContextMenu.classList.remove('show');
-            const rect = e.target.getBoundingClientRect();
-            contextMenu.style.top = `${rect.bottom + 5}px`;
-            contextMenu.style.left = `${rect.right - contextMenu.offsetWidth}px`;
-            contextMenu.classList.toggle('show');
-        });
+        // Listener do Menu de Contexto Principal (CORRIGIDO)
+    contextMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        groupContextMenu.classList.remove('show'); // Garante que o outro menu feche
+        
+        const rect = e.target.getBoundingClientRect();
+        
+        // Posiciona o menu 5px abaixo do botão
+        contextMenu.style.top = `${rect.bottom + 5}px`; 
+        
+        // --- LÓGICA DE POSICIONAMENTO CORRIGIDA ---
+        // Reseta o 'left' para não haver conflito
+        contextMenu.style.left = 'auto'; 
+        // Calcula a distância da borda direita do botão até a borda direita da tela
+        // e usa a propriedade 'right' do CSS para alinhar o menu.
+        contextMenu.style.right = `${window.innerWidth - rect.right}px`; 
 
+        contextMenu.classList.toggle('show');
+    });
         contextMenu.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
             if (!action) return;            
