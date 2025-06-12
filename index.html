@@ -14,6 +14,7 @@
             --text-color: #f1f5f9; /* Branco acinzentado */ 
             --border-color: rgba(255, 255, 255, 0.1);
             --hover-shadow: 0 0 15px rgba(59, 130, 246, 0.5); /* Sombra azul no hover */ 
+            --layout-gap: 2rem; /* [NOVO] Variavel para o espaçamento */
         }
 
         /* Garante que a base da página ocupe toda a tela */
@@ -42,12 +43,12 @@
 
         /* --- Estrutura Principal --- */
         .container {
-            display: flex;          /* Também se torna um contêiner flex */
-            flex-direction: column; /* Organiza o header e a área de grupos verticalmente */
-            flex-grow: 1;           /* FAZ O CONTAINER CRESCER PARA OCUPAR TODO O ESPAÇO DO BODY */
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
             padding: 2rem;
             width: 100%;
-            overflow: hidden;       /* Garante que o padding não cause problemas de layout */
+            overflow: hidden;
         }
 
         /* --- Barra Superior --- */
@@ -89,29 +90,37 @@
             padding: 0.5rem;
         }
 
-        /* --- Container dos Grupos (MODIFICADO PARA FASE 1) --- */
+        /* --- Container dos Grupos (Layout Padrão) --- */
         #groups-container {
             display: flex;
             flex-direction: row;
-            overflow-x: auto;   /* Permite a rolagem horizontal dos blocos */
+            overflow-x: auto;
             overflow-y: hidden;
             padding-bottom: 1.5rem;
-            gap: 2rem;
-            flex-grow: 1;       /* FAZ A ÁREA DOS GRUPOS CRESCER PARA OCUPAR O ESPAÇO VERTICAL */
+            gap: var(--layout-gap);
+            flex-grow: 1;
         }
 
-        /* --- [NOVO] Estilo para o Layout em Grade Centralizado --- */
+        /* --- Layout em Grade Centralizado --- */
         #groups-container.layout-centered {
             flex-direction: row;
             flex-wrap: wrap;
             justify-content: center;
-            align-content: flex-start; /* Alinha as linhas ao topo */
-            overflow-y: auto;          /* Ativa a rolagem vertical */
-            overflow-x: hidden;        /* Desativa a rolagem horizontal */
+            align-content: flex-start;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
-
-
-        /* --- Estilo de cada Grupo (MODIFICADO PARA FASE 1) --- */
+        
+        /* --- [ALTERADO] Layout Mosaico (Agora controlado por JS) --- */
+        #groups-container.layout-masonry {
+            position: relative; /* Essencial para o posicionamento absoluto dos filhos */
+            justify-content: initial;
+            overflow-y: auto;
+            overflow-x: hidden;
+            gap: 0; /* O gap é gerenciado pelo JS */
+        }
+        
+        /* --- Estilo de cada Grupo --- */
         .group {
             background-color: var(--group-background);
             border-radius: 16px; 
@@ -119,12 +128,21 @@
             border: 1px solid var(--border-color); 
             backdrop-filter: blur(10px); 
             -webkit-backdrop-filter: blur(10px); 
-            transition: border-color 0.2s ease, opacity 0.2s ease;
+            transition: border-color 0.2s ease, opacity 0.2s ease, top 0.3s ease, left 0.3s ease; /* Adiciona transição para top/left */
             flex-shrink: 0; 
             align-self: flex-start; 
             display: flex;
             flex-direction: column;
             max-height: calc(100vh - 10rem);
+            /* Reset de estilos para funcionar em todos os layouts */
+            position: relative; 
+            left: auto;
+            top: auto;
+        }
+        
+        /* [NOVO] Estilo específico para o bloco no modo Mosaico */
+        #groups-container.layout-masonry .group {
+            position: absolute; /* Ativado apenas no modo mosaico */
         }
         
         .group.drop-target-group {
@@ -137,7 +155,7 @@
             justify-content: space-between; 
             align-items: center; 
             margin-bottom: 1.5rem;
-            cursor: grab; /* Indica que o header é arrastável */
+            cursor: grab;
         }
         .group-header:active {
             cursor: grabbing;
@@ -192,10 +210,9 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
             gap: 1.5rem; 
-            /* ...propriedades existentes... */
-            overflow-y: auto;  /* A propriedade chave: cria a barra de rolagem vertical apenas quando necessário */
-            overflow-x: hidden; /* Evita uma barra de rolagem horizontal indesejada */
-            flex-grow: 1;      /* Faz a grade se expandir para preencher a altura disponível no .group */
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex-grow: 1;
         }
 
         .favorite-item {
@@ -428,7 +445,7 @@
             padding: 0.75rem 1rem;
         }
 
-        /* --- Estilos para Drag and Drop (ATUALIZADO FASE 1) --- */
+        /* --- Estilos para Drag and Drop --- */
         .favorite-item.dragging {
             opacity: 0.5;
             cursor: grabbing; 
@@ -436,9 +453,9 @@
 
         .group.dragging-group {
             opacity: 0.5;
-            position: fixed; /* Tira o elemento do fluxo normal */
+            position: fixed;
             z-index: 2000;
-            pointer-events: none; /* Evita que o elemento arrastado interfira com o drop */
+            pointer-events: none;
         }
         
         .placeholder {
@@ -455,34 +472,30 @@
         }
         
         /* --- Estilização da Barra de Rolagem Personalizada --- */
-
-        /* Para navegadores baseados em WebKit (Chrome, Edge, Safari) */
         ::-webkit-scrollbar {
-            width: 8px;  /* Largura da barra de rolagem vertical */
-            height: 8px; /* Altura da barra de rolagem horizontal */
+            width: 8px;
+            height: 8px;
         }
 
         ::-webkit-scrollbar-track {
-            background: rgba(17, 24, 39, 0.3); /* Fundo da trilha, um pouco mais claro que o fundo principal */
+            background: rgba(17, 24, 39, 0.3);
             border-radius: 10px;
         }
 
         ::-webkit-scrollbar-thumb {
-            background-color: rgba(255, 255, 255, 0.3); /* Cor do marcador arrastável */
+            background-color: rgba(255, 255, 255, 0.3);
             border-radius: 10px;
-            border: 2px solid transparent; /* Cria um preenchimento falso */
+            border: 2px solid transparent;
             background-clip: content-box;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background-color: rgba(255, 255, 255, 0.5); /* Cor ao passar o mouse */
+            background-color: rgba(255, 255, 255, 0.5);
         }
 
-        /* Para Firefox */
-        /* Aplicamos aos elementos que podem ter rolagem no nosso sistema */
         #groups-container, .favorites-grid {
-            scrollbar-width: thin; /* Deixa a barra mais fina */
-            scrollbar-color: rgba(255, 255, 255, 0.3) rgba(17, 24, 39, 0.3); /* Cor do marcador e da trilha */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) rgba(17, 24, 39, 0.3);
         }
 
     </style>
@@ -553,6 +566,12 @@
                         Centralizar Blocos (Layout em Grade)
                     </label>
                 </div>
+                <div class="form-group">
+                    <label for="masonry-layout-checkbox" style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                        <input type="checkbox" id="masonry-layout-checkbox" style="width: auto; height: auto; margin-right: 10px; cursor: pointer;">
+                        Layout Mosaico (Estilo Pinterest)
+                    </label>
+                </div>
                 <button type="submit" class="btn-primary">Salvar Alterações</button>
                 <button type="button" id="reset-width-btn" class="btn-secondary" style="background-color: #555; margin-top: 10px; width:100%; padding: 0.75rem; border:none; border-radius: 8px; color: white; cursor:pointer;">Redefinir para o Padrão</button>
             </form>
@@ -613,7 +632,8 @@
         "background": null,
         "settings": {
             "blockWidth": 320,
-            "centerBlocks": false // [NOVO] Adiciona a configuração de layout
+            "centerBlocks": false,
+            "masonryLayout": false
         }
     };
 
@@ -621,9 +641,8 @@
 
     function loadData() {
         const savedData = localStorage.getItem('launcherFavorites');
-        appData = savedData ? JSON.parse(savedData) : defaultData;
+        appData = savedData ? JSON.parse(savedData) : JSON.parse(JSON.stringify(defaultData));
 
-        // Garante que a estrutura de dados seja consistente
         if (!appData.settings) {
             appData.settings = defaultData.settings;
         }
@@ -758,7 +777,7 @@
                 if (importedGroups.length > 0) {
                     appData.groups = [...appData.groups, ...importedGroups];
                     saveData();
-                    render();
+                    renderAndLayout();
                     alert(`Importação concluída! ${importedGroups.length} novo(s) grupo(s) adicionado(s).`);
                 } else {
                     alert('Nenhuma pasta de favoritos encontrada para importar como grupo.');
@@ -775,20 +794,84 @@
         document.getElementById('import-input').click();
     }
     
-    // --- [NOVO] Função para aplicar o estilo de layout ---
-    function applyLayoutSettings() {
+    // --- [NOVO] Lógica de Layout ---
+
+    // Função "Debounce" para evitar execuções excessivas no resize
+    function debounce(func, delay) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+
+    function applyMasonryLayout() {
         const groupsContainer = document.getElementById('groups-container');
-        if (appData.settings && appData.settings.centerBlocks) {
-            groupsContainer.classList.add('layout-centered');
-        } else {
-            groupsContainer.classList.remove('layout-centered');
+        const groupElements = groupsContainer.querySelectorAll('.group');
+        if (groupElements.length === 0) return;
+
+        const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--layout-gap'), 10) || 32;
+        const itemWidth = appData.settings.blockWidth || 320;
+        const containerWidth = groupsContainer.offsetWidth;
+        const numColumns = Math.max(1, Math.floor(containerWidth / itemWidth));
+        
+        const columnHeights = Array(numColumns).fill(0);
+        const columnLefts = [];
+        const effectiveItemWidth = (containerWidth - (numColumns - 1) * gap) / numColumns;
+        
+        for (let i = 0; i < numColumns; i++) {
+            columnLefts.push(i * (effectiveItemWidth + gap));
         }
+
+        groupElements.forEach(group => {
+            group.style.width = `${effectiveItemWidth}px`; // Ajusta a largura para caber com o gap
+            const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+            
+            group.style.left = `${columnLefts[shortestColumnIndex]}px`;
+            group.style.top = `${columnHeights[shortestColumnIndex]}px`;
+            
+            columnHeights[shortestColumnIndex] += group.offsetHeight + gap;
+        });
+
+        groupsContainer.style.height = `${Math.max(...columnHeights)}px`;
+    }
+
+    function resetLayoutStyles() {
+        const groupsContainer = document.getElementById('groups-container');
+        groupsContainer.style.height = ''; // Reseta altura
+        groupsContainer.classList.remove('layout-centered', 'layout-masonry');
+        groupsContainer.querySelectorAll('.group').forEach(group => {
+            group.style.position = '';
+            group.style.top = '';
+            group.style.left = '';
+            group.style.width = `${appData.settings.blockWidth || 320}px`;
+        });
+    }
+
+    function applyLayoutSettings() {
+        resetLayoutStyles();
+        const groupsContainer = document.getElementById('groups-container');
+
+        if (appData.settings && appData.settings.masonryLayout) {
+            groupsContainer.classList.add('layout-masonry');
+            // A renderização precisa acontecer ANTES de calcular o mosaico
+            // para que os elementos tenham altura.
+            setTimeout(applyMasonryLayout, 50); 
+        } else if (appData.settings && appData.settings.centerBlocks) {
+            groupsContainer.classList.add('layout-centered');
+        }
+    }
+    
+    // [NOVO] Função combinada para renderizar e aplicar layout
+    function renderAndLayout() {
+        render(); // Primeiro, o HTML é criado
+        applyLayoutSettings(); // Depois, o JS posiciona os elementos
     }
 
     // --- Camada de Apresentação (Renderização) ---
     function render() {
         const groupsContainer = document.getElementById('groups-container');
-        groupsContainer.innerHTML = '';
+        groupsContainer.innerHTML = ''; // Limpa antes de renderizar
         if (appData.groups && appData.groups.length > 0) {
             renderHierarquia(appData.groups, groupsContainer);
         }
@@ -801,8 +884,6 @@
             if (isSubgroup) groupElement.classList.add('subgroup');
             groupElement.dataset.groupId = group.id;
             
-            // Aplica a largura personalizada
-            if (!appData.settings) appData.settings = { blockWidth: 320, centerBlocks: false };
             const blockWidth = appData.settings.blockWidth || 320;
             groupElement.style.width = `${blockWidth}px`;
 
@@ -813,7 +894,6 @@
                         <button class="add-favorite-btn" title="Adicionar Favorito">+</button>
                         <button class="group-context-btn" title="Opções do Grupo">⋮</button>
                     </div>
-
                 </div>
                 <div class="favorites-grid"></div>
                 <div class="subgroup-container"></div>
@@ -825,7 +905,7 @@
                     const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(fav.url)}`;
                     const favoriteElement = document.createElement('div');
                     favoriteElement.className = 'favorite-item';
-                    favoriteElement.draggable = true; // <-- ESSENCIAL PARA O DRAG-DROP DE FAVORITOS
+                    favoriteElement.draggable = true;
                     favoriteElement.dataset.favoriteId = fav.id;
                     favoriteElement.dataset.url = fav.url;
                     favoriteElement.innerHTML = `
@@ -854,9 +934,15 @@
     // --- Inicialização e Event Listeners ---
     document.addEventListener('DOMContentLoaded', () => {
         loadData();
-        applyLayoutSettings(); // [ALTERADO] Aplica o layout na inicialização
         applyWallpaper();
-        render();
+        renderAndLayout(); // Usa a nova função de inicialização
+        
+        // [NOVO] Listener para recalcular layout Mosaico no resize
+        window.addEventListener('resize', debounce(() => {
+            if (appData.settings.masonryLayout) {
+                applyMasonryLayout();
+            }
+        }, 250));
 
         const groupsContainer = document.getElementById('groups-container');
         const searchBar = document.getElementById('search-bar');
@@ -873,7 +959,6 @@
         let editState = { enabled: false, favoriteId: null };
         let activeGroupId = null;
 
-        // Função auxiliar para encontrar dados de um grupo em qualquer nível
         function findGroupData(groupId, groupsArray) {
             for (let i = 0; i < groupsArray.length; i++) {
                 const group = groupsArray[i];
@@ -889,30 +974,31 @@
         }
         
         // =================================================================
-        // LÓGICA DE DRAG AND DROP PARA GRUPOS (Sistema com Pointer Events)
+        // LÓGICA DE DRAG AND DROP PARA GRUPOS
         // =================================================================
         let draggedGroup = null;
         let placeholder = null;
         let isDraggingGroup = false;
         let dragOffsetX = 0, dragOffsetY = 0;
 
-    groupsContainer.addEventListener('pointerdown', e => {
-                // A verificação que desativava o arraste foi removida daqui.
-                
-                if (e.target.closest('.favorite-item')) return; // Ignora se o clique for em um favorito
+        groupsContainer.addEventListener('pointerdown', e => {
+            // [ALTERADO] Desativa o arraste de grupos no modo Mosaico
+            if (appData.settings.masonryLayout) return; 
+            
+            if (e.target.closest('.favorite-item')) return; 
 
-                const groupHeader = e.target.closest('.group-header');
-                if (!groupHeader || e.button !== 0) return;
+            const groupHeader = e.target.closest('.group-header');
+            if (!groupHeader || e.button !== 0) return;
 
-                e.preventDefault();
-                draggedGroup = groupHeader.closest('.group');
-                const rect = draggedGroup.getBoundingClientRect();
-                dragOffsetX = e.clientX - rect.left;
-                dragOffsetY = e.clientY - rect.top;
+            e.preventDefault();
+            draggedGroup = groupHeader.closest('.group');
+            const rect = draggedGroup.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
 
-                document.addEventListener('pointermove', onGroupPointerMove);
-                document.addEventListener('pointerup', onGroupPointerUp);
-            });
+            document.addEventListener('pointermove', onGroupPointerMove);
+            document.addEventListener('pointerup', onGroupPointerUp);
+        });
 
         function onGroupPointerMove(e) {
             e.preventDefault();
@@ -983,33 +1069,24 @@
                 }
             }
 
-            // A ordem da limpeza e renderização foi ajustada para corrigir o bug.
-            
-            // 1. Salva a nova ordem dos dados
             saveData();
             
-            // 2. Remove os elementos visuais temporários do arraste
             if (placeholder) placeholder.remove();
-
-            // [CORREÇÃO] Remove o bloco "fantasma" que foi usado para o arraste visual.
-            // A função render() irá recriá-lo no lugar certo a partir dos dados.
             if (draggedGroup) draggedGroup.remove(); 
             
             document.querySelectorAll('.group.drop-target-group').forEach(g => g.classList.remove('drop-target-group'));
 
-            // 3. Limpa as variáveis de estado e os listeners
             draggedGroup = null; 
             placeholder = null; 
             isDraggingGroup = false;
             document.removeEventListener('pointermove', onGroupPointerMove);
             document.removeEventListener('pointerup', onGroupPointerUp);
 
-            // 4. Renderiza a interface com a nova ordem, já sem os elementos fantasmas
-            render();
+            renderAndLayout();
         }
 
         // =================================================================
-        // LÓGICA DE DRAG AND DROP PARA FAVORITOS (Sistema com Draggable API) - RESTAURADO
+        // LÓGICA DE DRAG AND DROP PARA FAVORITOS
         // =================================================================
         let draggedItem = null;
         let sourceGroupId = null;
@@ -1053,32 +1130,27 @@
             const favIndex = sourceInfo.group.favorites.findIndex(f => f.id === favoriteId);
             if (favIndex === -1) return;
 
-            // 1. Remove o favorito da sua lista de origem e o guarda em uma variável.
             const [favoriteToMove] = sourceInfo.group.favorites.splice(favIndex, 1);
 
             if (!targetInfo.group.favorites) targetInfo.group.favorites = [];
 
-            // 2. [NOVO] Lógica para encontrar a posição exata de inserção.
             const afterElement = e.target.closest('.favorite-item');
 
             if (afterElement) {
-                // Se soltou em cima de outro favorito, insere antes dele.
                 const afterFavoriteId = afterElement.dataset.favoriteId;
                 const insertAtIndex = targetInfo.group.favorites.findIndex(f => f.id === afterFavoriteId);
 
                 if (insertAtIndex !== -1) {
                     targetInfo.group.favorites.splice(insertAtIndex, 0, favoriteToMove);
                 } else {
-                    // Fallback: se não encontrar o índice, adiciona ao final.
                     targetInfo.group.favorites.push(favoriteToMove);
                 }
             } else {
-                // Se soltou em uma área vazia da grade, simplesmente adiciona ao final.
                 targetInfo.group.favorites.push(favoriteToMove);
             }
 
             saveData();
-            render();
+            renderAndLayout();
         });
 
         groupsContainer.addEventListener('dragend', (e) => {
@@ -1098,25 +1170,16 @@
             if (!groupContextMenu.contains(e.target) && !e.target.classList.contains('group-context-btn')) groupContextMenu.classList.remove('show');
         });
 
-        // Listener do Menu de Contexto Principal (CORRIGIDO)
     contextMenuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        groupContextMenu.classList.remove('show'); // Garante que o outro menu feche
-        
+        groupContextMenu.classList.remove('show');
         const rect = e.target.getBoundingClientRect();
-        
-        // Posiciona o menu 5px abaixo do botão
         contextMenu.style.top = `${rect.bottom + 5}px`; 
-        
-        // --- LÓGICA DE POSICIONAMENTO CORRIGIDA ---
-        // Reseta o 'left' para não haver conflito
         contextMenu.style.left = 'auto'; 
-        // Calcula a distância da borda direita do botão até a borda direita da tela
-        // e usa a propriedade 'right' do CSS para alinhar o menu.
         contextMenu.style.right = `${window.innerWidth - rect.right}px`; 
-
         contextMenu.classList.toggle('show');
     });
+
         contextMenu.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
             if (!action) return;            
@@ -1131,7 +1194,7 @@
                         if(!appData.groups) appData.groups = [];
                         appData.groups.push({ id: 'group' + Date.now(), name: groupName, favorites: [], subgroups: [] });
                         saveData();
-                        render();
+                        renderAndLayout();
                     }
                     break;
                 case 'customize-layout':
@@ -1161,7 +1224,7 @@
             }
 
             saveData();
-            render();
+            renderAndLayout();
             groupContextMenu.classList.remove('show');
         });
         
@@ -1211,7 +1274,7 @@
                 if (favIndex !== -1 && confirm(`Excluir "${groupInfo.group.favorites[favIndex].name}"?`)) {
                     groupInfo.group.favorites.splice(favIndex, 1);
                     saveData();
-                    render();
+                    renderAndLayout();
                 }
                 return;
             }
@@ -1258,7 +1321,7 @@
                 groupInfo.group.favorites.push({ id: 'fav' + Date.now(), name, url });
             }
             saveData();
-            render();
+            renderAndLayout();
             closeModal();
         });
 
@@ -1275,6 +1338,10 @@
                 const groupTitle = groupEl.querySelector('h2').textContent.toLowerCase();
                 groupEl.style.display = (groupTitle.includes(query) || hasVisibleFavorites) ? '' : 'none';
             });
+            // Recalcula o layout após a busca
+            if (appData.settings.masonryLayout) {
+                applyMasonryLayout();
+            }
         });
 
         wallpaperInput.addEventListener('change', handleWallpaperSelect);
@@ -1287,52 +1354,60 @@
         const blockWidthSlider = document.getElementById('block-width-slider');
         const blockWidthValueSpan = document.getElementById('block-width-value');
         const resetWidthBtn = document.getElementById('reset-width-btn');
-        const centerBlocksCheckbox = document.getElementById('center-blocks-checkbox'); // [NOVO] Pega o checkbox
+        const centerBlocksCheckbox = document.getElementById('center-blocks-checkbox');
+        const masonryLayoutCheckbox = document.getElementById('masonry-layout-checkbox');
         const DEFAULT_BLOCK_WIDTH = 320;
 
-        // Função para abrir o modal de personalização
         function openCustomizeModal() {
-            // [ALTERADO] Carrega as configurações de layout ao abrir o modal
-            if (!appData.settings) appData.settings = { blockWidth: DEFAULT_BLOCK_WIDTH, centerBlocks: false };
+            if (!appData.settings) appData.settings = JSON.parse(JSON.stringify(defaultData.settings));
             const currentWidth = appData.settings.blockWidth || DEFAULT_BLOCK_WIDTH;
             const isCentered = appData.settings.centerBlocks || false;
+            const isMasonry = appData.settings.masonryLayout || false;
             
             blockWidthSlider.value = currentWidth;
             blockWidthValueSpan.textContent = currentWidth;
             centerBlocksCheckbox.checked = isCentered;
+            masonryLayoutCheckbox.checked = isMasonry;
 
             customizeModal.classList.add('show');
         }
 
-        // Atualiza o valor em texto enquanto o usuário arrasta o slider
         blockWidthSlider.addEventListener('input', () => {
             blockWidthValueSpan.textContent = blockWidthSlider.value;
         });
 
-        // Salva a nova largura
+        centerBlocksCheckbox.addEventListener('change', () => {
+            if (centerBlocksCheckbox.checked) {
+                masonryLayoutCheckbox.checked = false;
+            }
+        });
+
+        masonryLayoutCheckbox.addEventListener('change', () => {
+            if (masonryLayoutCheckbox.checked) {
+                centerBlocksCheckbox.checked = false;
+            }
+        });
+
+
         customizeForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            // [ALTERADO] Salva ambas as configurações
             appData.settings.blockWidth = parseInt(blockWidthSlider.value, 10);
             appData.settings.centerBlocks = centerBlocksCheckbox.checked;
+            appData.settings.masonryLayout = masonryLayoutCheckbox.checked;
             saveData();
-            applyLayoutSettings(); // Aplica o novo layout
-            render(); // Renderiza novamente para aplicar a largura
+            renderAndLayout(); // Usa a nova função
             customizeModal.classList.remove('show');
         });
 
-        // Redefine para o padrão
         resetWidthBtn.addEventListener('click', () => {
-            // [ALTERADO] Reseta ambas as configurações
             appData.settings.blockWidth = DEFAULT_BLOCK_WIDTH;
             appData.settings.centerBlocks = false;
+            appData.settings.masonryLayout = false;
             saveData();
-            applyLayoutSettings(); // Aplica o layout padrão
-            render(); // Renderiza novamente
+            renderAndLayout(); // Usa a nova função
             customizeModal.classList.remove('show');
         });
 
-        // Fecha o modal
         closeCustomizeModalBtn.addEventListener('click', () => {
             customizeModal.classList.remove('show');
         });
