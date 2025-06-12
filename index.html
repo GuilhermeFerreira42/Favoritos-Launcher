@@ -99,12 +99,11 @@
             backdrop-filter: blur(10px); 
             -webkit-backdrop-filter: blur(10px); 
             transition: border-color 0.2s ease, opacity 0.2s ease;
-            width: 320px;
             flex-shrink: 0; 
             align-self: flex-start; 
             display: flex;
             flex-direction: column;
-            max-height: calc(100vh - 10rem); /* Define a altura máxima (100% da altura da tela menos 10rem de margem) */
+            max-height: calc(100vh - 10rem);
         }
         
         .group.drop-target-group {
@@ -477,11 +476,12 @@
 
         <div id="context-menu" class="context-menu-wrapper">
             <ul>
-                <li data-action="change-wallpaper">Trocar papel de parede</li> 
-                <li data-action="restore-wallpaper">Restaurar papel de parede</li> 
-                <li data-action="import">Importar favoritos</li> 
-                <li data-action="export">Exportar favoritos</li> 
-                <li data-action="create-group">Criar novo grupo</li> 
+                <li data-action="change-wallpaper">Trocar papel de parede</li>
+                <li data-action="restore-wallpaper">Restaurar papel de parede</li>
+                <li data-action="import">Importar favoritos</li>
+                <li data-action="export">Exportar favoritos</li>
+                <li data-action="create-group">Criar novo grupo</li>
+                <li data-action="customize-layout">Personalizar</li>
             </ul>
         </div>
 
@@ -516,6 +516,22 @@
 
     <input type="file" id="wallpaper-input" class="hidden" accept="image/*">
     <input type="file" id="import-input" class="hidden" accept=".html,text/html">
+
+    <!-- Modal de Personalização -->
+    <div id="customize-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">×</span>
+            <h3>Personalizar Layout</h3>
+            <form id="customize-form">
+                <div class="form-group">
+                    <label for="block-width-slider">Largura dos Blocos (<span id="block-width-value">320</span>px)</label>
+                    <input type="range" id="block-width-slider" min="250" max="800" step="10">
+                </div>
+                <button type="submit" class="btn-primary">Salvar Alterações</button>
+                <button type="button" id="reset-width-btn" class="btn-secondary" style="background-color: #555; margin-top: 10px; width:100%; padding: 0.75rem; border:none; border-radius: 8px; color: white; cursor:pointer;">Redefinir para o Padrão</button>
+            </form>
+        </div>
+    </div>
 
 <script>
     // --- Funções de Exportação (Hierárquica) ---
@@ -561,18 +577,17 @@
     
     // --- Camada de Lógica e Persistência ---
     const defaultData = {
-        "groups": [{
-            "id": "group1", "name": "FERRAMENTAS DE IA", "favorites": [
-                { "id": "fav1", "name": "Perplexity AI", "url": "https://www.perplexity.ai/" },
-                { "id": "fav5", "name": "ChatGPT", "url": "https://chat.openai.com/" }
-            ], "subgroups": []
-        }, {
-            "id": "group2", "name": "TRABALHO", "favorites": [
-                { "id": "fav6", "name": "Google Drive", "url": "https://drive.google.com/" },
-                { "id": "fav7", "name": "GitHub", "url": "https://github.com/" }
-            ], "subgroups": []
-        }],
-        "background": null
+        "groups": [
+            {
+                "id": "1",
+                "name": "Favoritos",
+                "favorites": []
+            }
+        ],
+        "background": null,
+        "settings": {
+            "blockWidth": 320
+        }
     };
 
     let appData = {};
@@ -744,6 +759,11 @@
             if (isSubgroup) groupElement.classList.add('subgroup');
             groupElement.dataset.groupId = group.id;
             
+            // Aplica a largura personalizada
+            if (!appData.settings) appData.settings = { blockWidth: 320 };
+            const blockWidth = appData.settings.blockWidth || 320;
+            groupElement.style.width = `${blockWidth}px`;
+
             groupElement.innerHTML = `
                 <div class="group-header">
                     <h2>${group.name}</h2>
@@ -1037,6 +1057,10 @@
                         render();
                     }
                     break;
+                case 'customize-layout':
+                    openCustomizeModal();
+                    contextMenu.classList.remove('show');
+                    break;
             }
             contextMenu.classList.remove('show');
         });
@@ -1178,6 +1202,56 @@
 
         wallpaperInput.addEventListener('change', handleWallpaperSelect);
         importInput.addEventListener('change', handleImportSelect);
+
+        // Lógica para o modal de personalização
+        const customizeModal = document.getElementById('customize-modal');
+        const closeCustomizeModalBtn = customizeModal.querySelector('.close-btn');
+        const customizeForm = document.getElementById('customize-form');
+        const blockWidthSlider = document.getElementById('block-width-slider');
+        const blockWidthValueSpan = document.getElementById('block-width-value');
+        const resetWidthBtn = document.getElementById('reset-width-btn');
+        const DEFAULT_BLOCK_WIDTH = 320;
+
+        // Função para abrir o modal de personalização
+        function openCustomizeModal() {
+            if (!appData.settings) appData.settings = { blockWidth: DEFAULT_BLOCK_WIDTH };
+            const currentWidth = appData.settings.blockWidth || DEFAULT_BLOCK_WIDTH;
+            blockWidthSlider.value = currentWidth;
+            blockWidthValueSpan.textContent = currentWidth;
+            customizeModal.classList.add('show');
+        }
+
+        // Atualiza o valor em texto enquanto o usuário arrasta o slider
+        blockWidthSlider.addEventListener('input', () => {
+            blockWidthValueSpan.textContent = blockWidthSlider.value;
+        });
+
+        // Salva a nova largura
+        customizeForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            appData.settings.blockWidth = parseInt(blockWidthSlider.value, 10);
+            saveData();
+            render();
+            customizeModal.classList.remove('show');
+        });
+
+        // Redefine para o padrão
+        resetWidthBtn.addEventListener('click', () => {
+            appData.settings.blockWidth = DEFAULT_BLOCK_WIDTH;
+            saveData();
+            render();
+            customizeModal.classList.remove('show');
+        });
+
+        // Fecha o modal
+        closeCustomizeModalBtn.addEventListener('click', () => {
+            customizeModal.classList.remove('show');
+        });
+        customizeModal.addEventListener('click', (e) => {
+            if (e.target === customizeModal) {
+                customizeModal.classList.remove('show');
+            }
+        });
     });
 </script>
 
