@@ -1007,7 +1007,7 @@
             // 4. Renderiza a interface com a nova ordem, já sem os elementos fantasmas
             render();
         }
-        
+
         // =================================================================
         // LÓGICA DE DRAG AND DROP PARA FAVORITOS (Sistema com Draggable API) - RESTAURADO
         // =================================================================
@@ -1044,19 +1044,39 @@
 
             const targetGroupId = targetGroupElement.dataset.groupId;
             const favoriteId = draggedItem.dataset.favoriteId;
-            
+
             const sourceInfo = findGroupData(sourceGroupId, appData.groups);
             const targetInfo = findGroupData(targetGroupId, appData.groups);
-            
+
             if (!sourceInfo || !targetInfo) return;
 
             const favIndex = sourceInfo.group.favorites.findIndex(f => f.id === favoriteId);
-            if(favIndex === -1) return;
+            if (favIndex === -1) return;
 
+            // 1. Remove o favorito da sua lista de origem e o guarda em uma variável.
             const [favoriteToMove] = sourceInfo.group.favorites.splice(favIndex, 1);
-            if(!targetInfo.group.favorites) targetInfo.group.favorites = [];
-            targetInfo.group.favorites.push(favoriteToMove);
-            
+
+            if (!targetInfo.group.favorites) targetInfo.group.favorites = [];
+
+            // 2. [NOVO] Lógica para encontrar a posição exata de inserção.
+            const afterElement = e.target.closest('.favorite-item');
+
+            if (afterElement) {
+                // Se soltou em cima de outro favorito, insere antes dele.
+                const afterFavoriteId = afterElement.dataset.favoriteId;
+                const insertAtIndex = targetInfo.group.favorites.findIndex(f => f.id === afterFavoriteId);
+
+                if (insertAtIndex !== -1) {
+                    targetInfo.group.favorites.splice(insertAtIndex, 0, favoriteToMove);
+                } else {
+                    // Fallback: se não encontrar o índice, adiciona ao final.
+                    targetInfo.group.favorites.push(favoriteToMove);
+                }
+            } else {
+                // Se soltou em uma área vazia da grade, simplesmente adiciona ao final.
+                targetInfo.group.favorites.push(favoriteToMove);
+            }
+
             saveData();
             render();
         });
