@@ -100,6 +100,17 @@
             flex-grow: 1;       /* FAZ A ÁREA DOS GRUPOS CRESCER PARA OCUPAR O ESPAÇO VERTICAL */
         }
 
+        /* --- [NOVO] Estilo para o Layout em Grade Centralizado --- */
+        #groups-container.layout-centered {
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start; /* Alinha as linhas ao topo */
+            overflow-y: auto;          /* Ativa a rolagem vertical */
+            overflow-x: hidden;        /* Desativa a rolagem horizontal */
+        }
+
+
         /* --- Estilo de cada Grupo (MODIFICADO PARA FASE 1) --- */
         .group {
             background-color: var(--group-background);
@@ -527,7 +538,6 @@
     <input type="file" id="wallpaper-input" class="hidden" accept="image/*">
     <input type="file" id="import-input" class="hidden" accept=".html,text/html">
 
-    <!-- Modal de Personalização -->
     <div id="customize-modal" class="modal">
         <div class="modal-content">
             <span class="close-btn">×</span>
@@ -536,6 +546,12 @@
                 <div class="form-group">
                     <label for="block-width-slider">Largura dos Blocos (<span id="block-width-value">320</span>px)</label>
                     <input type="range" id="block-width-slider" min="250" max="800" step="10">
+                </div>
+                <div class="form-group">
+                    <label for="center-blocks-checkbox" style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                        <input type="checkbox" id="center-blocks-checkbox" style="width: auto; height: auto; margin-right: 10px; cursor: pointer;">
+                        Centralizar Blocos (Layout em Grade)
+                    </label>
                 </div>
                 <button type="submit" class="btn-primary">Salvar Alterações</button>
                 <button type="button" id="reset-width-btn" class="btn-secondary" style="background-color: #555; margin-top: 10px; width:100%; padding: 0.75rem; border:none; border-radius: 8px; color: white; cursor:pointer;">Redefinir para o Padrão</button>
@@ -596,7 +612,8 @@
         ],
         "background": null,
         "settings": {
-            "blockWidth": 320
+            "blockWidth": 320,
+            "centerBlocks": false // [NOVO] Adiciona a configuração de layout
         }
     };
 
@@ -605,6 +622,11 @@
     function loadData() {
         const savedData = localStorage.getItem('launcherFavorites');
         appData = savedData ? JSON.parse(savedData) : defaultData;
+
+        // Garante que a estrutura de dados seja consistente
+        if (!appData.settings) {
+            appData.settings = defaultData.settings;
+        }
     }
 
     function saveData() {
@@ -752,6 +774,16 @@
     function openImportSelector() {
         document.getElementById('import-input').click();
     }
+    
+    // --- [NOVO] Função para aplicar o estilo de layout ---
+    function applyLayoutSettings() {
+        const groupsContainer = document.getElementById('groups-container');
+        if (appData.settings && appData.settings.centerBlocks) {
+            groupsContainer.classList.add('layout-centered');
+        } else {
+            groupsContainer.classList.remove('layout-centered');
+        }
+    }
 
     // --- Camada de Apresentação (Renderização) ---
     function render() {
@@ -770,7 +802,7 @@
             groupElement.dataset.groupId = group.id;
             
             // Aplica a largura personalizada
-            if (!appData.settings) appData.settings = { blockWidth: 320 };
+            if (!appData.settings) appData.settings = { blockWidth: 320, centerBlocks: false };
             const blockWidth = appData.settings.blockWidth || 320;
             groupElement.style.width = `${blockWidth}px`;
 
@@ -781,6 +813,7 @@
                         <button class="add-favorite-btn" title="Adicionar Favorito">+</button>
                         <button class="group-context-btn" title="Opções do Grupo">⋮</button>
                     </div>
+
                 </div>
                 <div class="favorites-grid"></div>
                 <div class="subgroup-container"></div>
@@ -821,6 +854,7 @@
     // --- Inicialização e Event Listeners ---
     document.addEventListener('DOMContentLoaded', () => {
         loadData();
+        applyLayoutSettings(); // [ALTERADO] Aplica o layout na inicialização
         applyWallpaper();
         render();
 
@@ -862,21 +896,23 @@
         let isDraggingGroup = false;
         let dragOffsetX = 0, dragOffsetY = 0;
 
-        groupsContainer.addEventListener('pointerdown', e => {
-            if (e.target.closest('.favorite-item')) return; // Ignora se o clique for em um favorito
+    groupsContainer.addEventListener('pointerdown', e => {
+                // A verificação que desativava o arraste foi removida daqui.
+                
+                if (e.target.closest('.favorite-item')) return; // Ignora se o clique for em um favorito
 
-            const groupHeader = e.target.closest('.group-header');
-            if (!groupHeader || e.button !== 0) return;
+                const groupHeader = e.target.closest('.group-header');
+                if (!groupHeader || e.button !== 0) return;
 
-            e.preventDefault();
-            draggedGroup = groupHeader.closest('.group');
-            const rect = draggedGroup.getBoundingClientRect();
-            dragOffsetX = e.clientX - rect.left;
-            dragOffsetY = e.clientY - rect.top;
+                e.preventDefault();
+                draggedGroup = groupHeader.closest('.group');
+                const rect = draggedGroup.getBoundingClientRect();
+                dragOffsetX = e.clientX - rect.left;
+                dragOffsetY = e.clientY - rect.top;
 
-            document.addEventListener('pointermove', onGroupPointerMove);
-            document.addEventListener('pointerup', onGroupPointerUp);
-        });
+                document.addEventListener('pointermove', onGroupPointerMove);
+                document.addEventListener('pointerup', onGroupPointerUp);
+            });
 
         function onGroupPointerMove(e) {
             e.preventDefault();
@@ -946,21 +982,32 @@
                     appData.groups.splice(finalIndex, 0, movedGroup);
                 }
             }
+
+            // A ordem da limpeza e renderização foi ajustada para corrigir o bug.
             
+            // 1. Salva a nova ordem dos dados
             saveData();
             
-            if(draggedGroup) {
-                draggedGroup.classList.remove('dragging-group');
-                draggedGroup.style = '';
-            }
-            if(placeholder) placeholder.remove();
+            // 2. Remove os elementos visuais temporários do arraste
+            if (placeholder) placeholder.remove();
+
+            // [CORREÇÃO] Remove o bloco "fantasma" que foi usado para o arraste visual.
+            // A função render() irá recriá-lo no lugar certo a partir dos dados.
+            if (draggedGroup) draggedGroup.remove(); 
+            
             document.querySelectorAll('.group.drop-target-group').forEach(g => g.classList.remove('drop-target-group'));
-            draggedGroup = null; placeholder = null; isDraggingGroup = false;
+
+            // 3. Limpa as variáveis de estado e os listeners
+            draggedGroup = null; 
+            placeholder = null; 
+            isDraggingGroup = false;
             document.removeEventListener('pointermove', onGroupPointerMove);
             document.removeEventListener('pointerup', onGroupPointerUp);
+
+            // 4. Renderiza a interface com a nova ordem, já sem os elementos fantasmas
             render();
         }
-
+        
         // =================================================================
         // LÓGICA DE DRAG AND DROP PARA FAVORITOS (Sistema com Draggable API) - RESTAURADO
         // =================================================================
@@ -1220,14 +1267,20 @@
         const blockWidthSlider = document.getElementById('block-width-slider');
         const blockWidthValueSpan = document.getElementById('block-width-value');
         const resetWidthBtn = document.getElementById('reset-width-btn');
+        const centerBlocksCheckbox = document.getElementById('center-blocks-checkbox'); // [NOVO] Pega o checkbox
         const DEFAULT_BLOCK_WIDTH = 320;
 
         // Função para abrir o modal de personalização
         function openCustomizeModal() {
-            if (!appData.settings) appData.settings = { blockWidth: DEFAULT_BLOCK_WIDTH };
+            // [ALTERADO] Carrega as configurações de layout ao abrir o modal
+            if (!appData.settings) appData.settings = { blockWidth: DEFAULT_BLOCK_WIDTH, centerBlocks: false };
             const currentWidth = appData.settings.blockWidth || DEFAULT_BLOCK_WIDTH;
+            const isCentered = appData.settings.centerBlocks || false;
+            
             blockWidthSlider.value = currentWidth;
             blockWidthValueSpan.textContent = currentWidth;
+            centerBlocksCheckbox.checked = isCentered;
+
             customizeModal.classList.add('show');
         }
 
@@ -1239,17 +1292,23 @@
         // Salva a nova largura
         customizeForm.addEventListener('submit', (e) => {
             e.preventDefault();
+            // [ALTERADO] Salva ambas as configurações
             appData.settings.blockWidth = parseInt(blockWidthSlider.value, 10);
+            appData.settings.centerBlocks = centerBlocksCheckbox.checked;
             saveData();
-            render();
+            applyLayoutSettings(); // Aplica o novo layout
+            render(); // Renderiza novamente para aplicar a largura
             customizeModal.classList.remove('show');
         });
 
         // Redefine para o padrão
         resetWidthBtn.addEventListener('click', () => {
+            // [ALTERADO] Reseta ambas as configurações
             appData.settings.blockWidth = DEFAULT_BLOCK_WIDTH;
+            appData.settings.centerBlocks = false;
             saveData();
-            render();
+            applyLayoutSettings(); // Aplica o layout padrão
+            render(); // Renderiza novamente
             customizeModal.classList.remove('show');
         });
 
