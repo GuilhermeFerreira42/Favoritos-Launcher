@@ -16,6 +16,12 @@
             --hover-shadow: 0 0 15px rgba(59, 130, 246, 0.5); /* Sombra azul no hover */ 
         }
 
+        /* Garante que a base da página ocupe toda a tela */
+        html, body {
+            height: 100%;
+            overflow: hidden; /* Previne barras de rolagem duplas e indesejadas no corpo da página */
+        }
+
         * {
             margin: 0;
             padding: 0; 
@@ -31,13 +37,17 @@
             background-position: center; 
             background-attachment: fixed; 
             min-height: 100vh;
+            display: flex; /* Transforma o body em um contêiner flex */
         }
 
         /* --- Estrutura Principal --- */
         .container {
-            /* max-width: 1400px; */ /* REMOVA OU COMENTE ESTA LINHA */
-            margin: 0;             /* Ajuste a margem para 0 */
+            display: flex;          /* Também se torna um contêiner flex */
+            flex-direction: column; /* Organiza o header e a área de grupos verticalmente */
+            flex-grow: 1;           /* FAZ O CONTAINER CRESCER PARA OCUPAR TODO O ESPAÇO DO BODY */
             padding: 2rem;
+            width: 100%;
+            overflow: hidden;       /* Garante que o padding não cause problemas de layout */
         }
 
         /* --- Barra Superior --- */
@@ -83,11 +93,11 @@
         #groups-container {
             display: flex;
             flex-direction: row;
-            overflow-x: auto;
+            overflow-x: auto;   /* Permite a rolagem horizontal dos blocos */
             overflow-y: hidden;
             padding-bottom: 1.5rem;
             gap: 2rem;
-            min-height: 60vh; /* Altura mínima para área de drop */
+            flex-grow: 1;       /* FAZ A ÁREA DOS GRUPOS CRESCER PARA OCUPAR O ESPAÇO VERTICAL */
         }
 
         /* --- Estilo de cada Grupo (MODIFICADO PARA FASE 1) --- */
