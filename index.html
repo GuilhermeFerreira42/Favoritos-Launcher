@@ -15,6 +15,9 @@
             --border-color: rgba(255, 255, 255, 0.1);
             --hover-shadow: 0 0 15px rgba(59, 130, 246, 0.5); /* Sombra azul no hover */ 
             --layout-gap: 2rem; /* [NOVO] Variavel para o espaçamento */
+            --search-bar-width: 500px;
+            --favorite-item-size: 60px;
+            --favorite-font-size: 0.8rem;
         }
 
         /* Garante que a base da página ocupe toda a tela */
@@ -60,17 +63,36 @@
             position: relative; 
         }
 
+        .top-bar-action-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.8rem;
+            line-height: 1;
+            cursor: pointer;
+            margin-left: 1rem;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .top-bar-action-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
         .search-bar {
             width: 100%;
-            max-width: 500px; 
-            padding: 0.75rem 1.5rem; 
-            border-radius: 50px; 
-            border: 1px solid var(--border-color); 
-            background-color: var(--group-background); 
-            color: var(--text-color); 
-            font-size: 1rem; 
+            max-width: var(--search-bar-width);
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            border: 1px solid var(--border-color);
+            background-color: var(--group-background);
+            color: var(--text-color);
+            font-size: 1rem;
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px); 
+            -webkit-backdrop-filter: blur(10px);
         }
 
         .search-bar::placeholder {
@@ -232,15 +254,15 @@
         }
 
         .favorite-item .favicon-container {
-            width: 60px;
-            height: 60px; 
-            border-radius: 12px; 
-            background-color: rgba(0, 0, 0, 0.2); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+            width: var(--favorite-item-size);
+            height: var(--favorite-item-size);
+            border-radius: 12px;
+            background-color: rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); 
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
         }
 
         .favorite-item img {
@@ -250,11 +272,11 @@
         }
 
         .favorite-item .name {
-            font-size: 0.8rem;
-            text-align: center; 
-            width: 100%; 
-            white-space: nowrap; 
-            overflow: hidden; 
+            font-size: var(--favorite-font-size);
+            text-align: center;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
             text-overflow: ellipsis;
         }
         
@@ -505,6 +527,7 @@
     <div class="container">
         <header class="top-bar">
             <input type="search" id="search-bar" class="search-bar" placeholder="🔎 Pesquisar">
+            <button id="add-group-btn" class="top-bar-action-btn" title="Criar Novo Grupo">+</button>
             <button class="context-menu-btn" title="Menu">⋮</button>
         </header>
 
@@ -516,6 +539,7 @@
                 <li data-action="export">Exportar favoritos</li>
                 <li data-action="create-group">Criar novo grupo</li>
                 <li data-action="customize-layout">Personalizar</li>
+                <li data-action="delete-all" style="color: #fca5a5;">Apagar Tudo</li>
             </ul>
         </div>
 
@@ -559,6 +583,14 @@
                 <div class="form-group">
                     <label for="block-width-slider">Largura dos Blocos (<span id="block-width-value">320</span>px)</label>
                     <input type="range" id="block-width-slider" min="250" max="800" step="10">
+                </div>
+                <div class="form-group">
+                    <label for="search-width-slider">Largura da Busca (<span id="search-width-value">500</span>px)</label>
+                    <input type="range" id="search-width-slider" min="300" max="800" step="10">
+                </div>
+                <div class="form-group">
+                    <label for="favorite-size-slider">Tamanho dos Favoritos (<span id="favorite-size-value">60</span>px)</label>
+                    <input type="range" id="favorite-size-slider" min="40" max="90" step="1">
                 </div>
                 <div class="form-group">
                     <label for="center-blocks-checkbox" style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
@@ -633,7 +665,9 @@
         "settings": {
             "blockWidth": 320,
             "centerBlocks": false,
-            "masonryLayout": false
+            "masonryLayout": false,
+            "searchBarWidth": 500,
+            "favoriteSize": 60
         }
     };
 
@@ -934,6 +968,7 @@
     // --- Inicialização e Event Listeners ---
     document.addEventListener('DOMContentLoaded', () => {
         loadData();
+        applyDynamicStyles(); // Aplica estilos dinâmicos
         applyWallpaper();
         renderAndLayout(); // Usa a nova função de inicialização
         
@@ -1189,17 +1224,18 @@
                 case 'import': openImportSelector(); break;
                 case 'export': exportFavorites(); break;
                 case 'create-group':
-                    const groupName = prompt('Digite o nome do novo grupo:');
-                    if (groupName) {
-                        if(!appData.groups) appData.groups = [];
-                        appData.groups.push({ id: 'group' + Date.now(), name: groupName, favorites: [], subgroups: [] });
-                        saveData();
-                        renderAndLayout();
-                    }
+                    createNewGroup();
                     break;
                 case 'customize-layout':
                     openCustomizeModal();
                     contextMenu.classList.remove('show');
+                    break;
+                case 'delete-all':
+                    if (confirm('Tem certeza que deseja excluir todos os favoritos? Esta ação é irreversível.')) {
+                        appData.groups = [];
+                        saveData();
+                        renderAndLayout();
+                    }
                     break;
             }
             contextMenu.classList.remove('show');
@@ -1361,11 +1397,17 @@
         function openCustomizeModal() {
             if (!appData.settings) appData.settings = JSON.parse(JSON.stringify(defaultData.settings));
             const currentWidth = appData.settings.blockWidth || DEFAULT_BLOCK_WIDTH;
+            const currentSearchWidth = appData.settings.searchBarWidth || 500;
+            const currentFavSize = appData.settings.favoriteSize || 60;
             const isCentered = appData.settings.centerBlocks || false;
             const isMasonry = appData.settings.masonryLayout || false;
             
             blockWidthSlider.value = currentWidth;
             blockWidthValueSpan.textContent = currentWidth;
+            searchWidthSlider.value = currentSearchWidth;
+            searchWidthValueSpan.textContent = currentSearchWidth;
+            favoriteSizeSlider.value = currentFavSize;
+            favoriteSizeValueSpan.textContent = currentFavSize;
             centerBlocksCheckbox.checked = isCentered;
             masonryLayoutCheckbox.checked = isMasonry;
 
@@ -1392,19 +1434,25 @@
         customizeForm.addEventListener('submit', (e) => {
             e.preventDefault();
             appData.settings.blockWidth = parseInt(blockWidthSlider.value, 10);
+            appData.settings.searchBarWidth = parseInt(searchWidthSlider.value, 10);
+            appData.settings.favoriteSize = parseInt(favoriteSizeSlider.value, 10);
             appData.settings.centerBlocks = centerBlocksCheckbox.checked;
             appData.settings.masonryLayout = masonryLayoutCheckbox.checked;
             saveData();
-            renderAndLayout(); // Usa a nova função
+            applyDynamicStyles();
+            renderAndLayout();
             customizeModal.classList.remove('show');
         });
 
         resetWidthBtn.addEventListener('click', () => {
             appData.settings.blockWidth = DEFAULT_BLOCK_WIDTH;
+            appData.settings.searchBarWidth = 500;
+            appData.settings.favoriteSize = 60;
             appData.settings.centerBlocks = false;
             appData.settings.masonryLayout = false;
             saveData();
-            renderAndLayout(); // Usa a nova função
+            applyDynamicStyles();
+            renderAndLayout();
             customizeModal.classList.remove('show');
         });
 
@@ -1416,7 +1464,46 @@
                 customizeModal.classList.remove('show');
             }
         });
+
+        const addGroupBtn = document.getElementById('add-group-btn');
+        const searchWidthSlider = document.getElementById('search-width-slider');
+        const searchWidthValueSpan = document.getElementById('search-width-value');
+        const favoriteSizeSlider = document.getElementById('favorite-size-slider');
+        const favoriteSizeValueSpan = document.getElementById('favorite-size-value');
+        
+        addGroupBtn.addEventListener('click', createNewGroup);
     });
+
+    function applyDynamicStyles() {
+        if (!appData.settings) return;
+        const settings = appData.settings;
+        const root = document.documentElement;
+
+        // Aplica largura da barra de pesquisa
+        root.style.setProperty('--search-bar-width', `${settings.searchBarWidth || 500}px`);
+
+        // Aplica tamanho dos favoritos e da fonte proporcionalmente
+        const favSize = settings.favoriteSize || 60;
+        root.style.setProperty('--favorite-item-size', `${favSize}px`);
+        const fontSize = 0.8 * (favSize / 60); // Calcula fonte proporcional
+        root.style.setProperty('--favorite-font-size', `${fontSize.toFixed(2)}rem`);
+    }
+
+    // Função para criar um novo grupo (para evitar repetição de código)
+    function createNewGroup() {
+        const groupName = prompt('Digite o nome do novo grupo:');
+        if (groupName && groupName.trim()) {
+            if (!appData.groups) appData.groups = [];
+            appData.groups.push({
+                id: 'group' + Date.now(),
+                name: groupName.trim(),
+                favorites: [],
+                subgroups: []
+            });
+            saveData();
+            renderAndLayout();
+        }
+    }
 </script>
 
 </body>
