@@ -188,6 +188,24 @@ Estes requisitos detalham a aparência e a estrutura da interface do usuário.
     * Possuem estilo "glassmorphism" e destacam o item sob o cursor do mouse.
     * Fecham-se ao clicar em uma opção ou em qualquer outra área da tela.
 
+* **RI009 - Barra de Rolagem Personalizada:**
+    * A interface implementa uma barra de rolagem personalizada com:
+        * Largura fina (8px)
+        * Cantos arredondados
+        * Cores personalizadas que combinam com o tema
+        * Compatibilidade com Firefox (scrollbar-width e scrollbar-color)
+        * Estilo hover para melhor feedback visual
+
+* **RI010 - Elementos de Interação:**
+    * **Botões de Ação:**
+        * Feedback visual com mudança de opacidade
+        * Cores específicas para diferentes ações (azul para editar, vermelho para excluir)
+        * Transições suaves para todos os estados
+    * **Áreas Arrastáveis:**
+        * Cursor específico para indicar arrastar (grab/grabbing)
+        * Placeholder visual durante o arraste
+        * Indicadores visuais de área de soltura
+
 ---
 
 #### **5. Requisitos de Dados (RD)**
@@ -221,7 +239,11 @@ Estes requisitos descrevem a estrutura e o formato dos dados gerenciados pelo si
 * **RD004 - Estrutura do Objeto `settings`:**
     ```json
     {
-      "blockWidth": "number" // Largura em pixels dos blocos de grupo (ex: 320)
+      "blockWidth": "number",     // Largura em pixels dos blocos de grupo (ex: 320)
+      "centerBlocks": "boolean",  // Define se o layout em grade está ativo
+      "masonryLayout": "boolean", // Define se o layout mosaico está ativo
+      "searchBarWidth": "number", // Largura da barra de busca em pixels
+      "favoriteSize": "number"    // Tamanho dos ícones de favoritos em pixels
     }
     ```
 

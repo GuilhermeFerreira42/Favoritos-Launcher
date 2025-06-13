@@ -573,7 +573,7 @@
         </div>
     </div>
 
-    <input type="file" id="wallpaper-input" class="hidden" accept="image/*">
+    <input type="file" id="wallpaper-input" class="hidden" accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.avif">
     <input type="file" id="import-input" class="hidden" accept=".html,text/html">
 
     <div id="customize-modal" class="modal">
@@ -698,16 +698,65 @@
     }
 
     function handleWallpaperSelect(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            appData.background = e.target.result;
-            saveData();
-            applyWallpaper();
-        };
-        reader.readAsDataURL(file);
-    }    
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // --- Início da Lógica de Redimensionamento ---
+
+    // 1. Define as dimensões máximas para o papel de parede. 1920px é ótimo para a maioria das telas.
+    const MAX_WIDTH_OR_HEIGHT = 1920;
+    
+    // 2. Cria um objeto de imagem em memória
+    const img = new Image();
+    const reader = new FileReader();
+
+    // 3. Define o que acontece quando a imagem terminar de carregar em memória
+    img.onload = () => {
+        let { width, height } = img; // Pega as dimensões originais
+
+        // 4. Verifica se a imagem precisa ser redimensionada
+        if (width > MAX_WIDTH_OR_HEIGHT || height > MAX_WIDTH_OR_HEIGHT) {
+            // Calcula as novas dimensões mantendo a proporção
+            if (width > height) {
+                height = (MAX_WIDTH_OR_HEIGHT / width) * height;
+                width = MAX_WIDTH_OR_HEIGHT;
+            } else {
+                width = (MAX_WIDTH_OR_HEIGHT / height) * width;
+                height = MAX_WIDTH_OR_HEIGHT;
+            }
+        }
+
+        // 5. Cria o "quadro de pintura" (canvas) invisível com as novas dimensões
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        // 6. Desenha a imagem original (grande) na tela do canvas (pequena)
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // 7. Exporta o conteúdo do canvas como uma nova imagem JPG comprimida
+        // O segundo parâmetro (0.8) é a qualidade da compressão (80%).
+        const resizedImageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // 8. Usa a nova imagem redimensionada e salva os dados
+        appData.background = resizedImageDataUrl;
+        saveData();
+        applyWallpaper();
+        
+        // Limpa o objeto de URL da memória para evitar vazamentos
+        URL.revokeObjectURL(img.src);
+    };
+    
+    // Define o que acontece quando o FileReader ler o arquivo
+    reader.onload = (e) => {
+        // Em vez de usar o resultado diretamente, o usamos para carregar o objeto de imagem
+        img.src = e.target.result;
+    };
+    
+    // Inicia a leitura do arquivo selecionado pelo usuário
+    reader.readAsDataURL(file);
+}
 
     function openWallpaperSelector() {
         document.getElementById('wallpaper-input').click();
