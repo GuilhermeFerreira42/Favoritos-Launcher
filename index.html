@@ -521,6 +521,12 @@
             scrollbar-color: rgba(255, 255, 255, 0.3) rgba(17, 24, 39, 0.3);
         }
 
+        .favorite-item .favicon-container .emoji-icon {
+            font-size: 38px; /* Tamanho do emoji */
+            line-height: 1;
+            text-align: center;
+        }
+
     </style>
 </head>
 <body>
@@ -568,6 +574,25 @@
                     <label for="favorite-url">URL</label>
                     <input type="url" id="favorite-url" placeholder="https://exemplo.com" required> 
                 </div>
+
+                <div class="form-group">
+                    <label>Ícone</label>
+                    <div id="icon-choice-container" style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                        <label style="cursor:pointer;"><input type="radio" name="icon-type" value="default" checked> Padrão</label>
+                        <label style="cursor:pointer;"><input type="radio" name="icon-type" value="emoji"> Emoji</label>
+                        <label style="cursor:pointer;"><input type="radio" name="icon-type" value="image"> Imagem</label>
+                    </div>
+                    
+                    <div id="emoji-input-container" class="hidden">
+                        <input type="text" id="favorite-emoji" placeholder="Cole um emoji aqui, ex: ✨" maxlength="2">
+                    </div>
+
+                    <div id="image-input-container" class="hidden" style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" id="choose-icon-btn" class="btn-secondary" style="background-color: #555; width:auto; padding: 0.5rem 1rem; border:none; border-radius: 8px; color: white; cursor:pointer;">Escolher Imagem...</button>
+                        <div id="icon-preview" style="width: 40px; height: 40px; background-color: rgba(0,0,0,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                            </div>
+                    </div>
+                </div>
                 <button type="submit" class="btn-primary" id="modal-submit-btn">Salvar</button>
             </form>
         </div>
@@ -575,6 +600,7 @@
 
     <input type="file" id="wallpaper-input" class="hidden" accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.avif">
     <input type="file" id="import-input" class="hidden" accept=".html,text/html">
+    <input type="file" id="favorite-icon-input" class="hidden" accept="image/*">
 
     <div id="customize-modal" class="modal">
         <div class="modal-content">
@@ -697,6 +723,45 @@
         } else {
             document.body.style.backgroundImage = 'linear-gradient(145deg, var(--background-start), var(--background-end))';
         }
+    }
+
+    function handleFavoriteIconSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const MAX_SIZE = 128; // Ícones podem ser menores, 128x128 é suficiente
+        const img = new Image();
+        const reader = new FileReader();
+
+        img.onload = () => {
+            let { width, height } = img;
+            if (width > MAX_SIZE || height > MAX_SIZE) {
+                if (width > height) {
+                    height = (MAX_SIZE / width) * height;
+                    width = MAX_SIZE;
+                } else {
+                    width = (MAX_SIZE / height) * width;
+                    height = MAX_SIZE;
+                }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Usar PNG para manter a transparência, se houver
+            const resizedImageDataUrl = canvas.toDataURL('image/png'); 
+            
+            // Salva na variável temporária e mostra a pré-visualização
+            editedFavoriteIconData = resizedImageDataUrl;
+            document.getElementById('icon-preview').innerHTML = `<img src="${resizedImageDataUrl}" style="width:100%; height:100%; object-fit:cover;">`;
+            
+            URL.revokeObjectURL(img.src);
+        };
+
+        reader.onload = (e) => { img.src = e.target.result; };
+        reader.readAsDataURL(file);
     }
 
     function handleWallpaperSelect(event) {
@@ -967,19 +1032,32 @@
             const favoritesGrid = groupElement.querySelector('.favorites-grid');
             if (group.favorites) {
                 group.favorites.forEach(fav => {
-                    const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(fav.url)}`;
                     const favoriteElement = document.createElement('div');
                     favoriteElement.className = 'favorite-item';
                     favoriteElement.draggable = true;
                     favoriteElement.dataset.favoriteId = fav.id;
                     favoriteElement.dataset.url = fav.url;
+
+                    let iconHTML = '';
+                    if (fav.icon && fav.icon.startsWith('data:image')) {
+                        // Renderiza imagem customizada
+                        iconHTML = `<img src="${fav.icon}" alt="">`;
+                    } else if (fav.icon) {
+                        // Renderiza emoji
+                        iconHTML = `<span class="emoji-icon">${fav.icon}</span>`;
+                    } else {
+                        // Renderiza o favicon padrão
+                        const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(fav.url)}`;
+                        iconHTML = `<img src="${faviconUrl}" alt="" onerror="this.style.display='none'">`;
+                    }
+
                     favoriteElement.innerHTML = `
                         <div class="favorite-actions">
                             <button class="action-btn edit-fav-btn" title="Editar">✏️</button>
                             <button class="action-btn delete-fav-btn" title="Excluir">❌</button>
                         </div>
                         <div class="favicon-container" title="${fav.name}">
-                            <img src="${faviconUrl}" alt="" onerror="this.style.display='none'">
+                            ${iconHTML}
                         </div>
                         <span class="name">${fav.name}</span>
                     `;
@@ -1023,6 +1101,37 @@
         let currentGroupId = null;
         let editState = { enabled: false, favoriteId: null };
         let activeGroupId = null;
+        let editedFavoriteIconData = null; // <-- NOVA VARIÁVEL GLOBAL (no escopo)
+
+        // Lógica para controlar a UI de seleção de ícone no modal
+        const iconTypeRadios = document.querySelectorAll('input[name="icon-type"]');
+        const emojiContainer = document.getElementById('emoji-input-container');
+        const imageContainer = document.getElementById('image-input-container');
+        const favoriteEmojiInput = document.getElementById('favorite-emoji');
+        const iconPreview = document.getElementById('icon-preview');
+
+        iconTypeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                emojiContainer.classList.add('hidden');
+                imageContainer.classList.add('hidden');
+                if (radio.value === 'emoji') {
+                    emojiContainer.classList.remove('hidden');
+                    imageContainer.classList.remove('hidden'); // Manter preview visível
+                } else if (radio.value === 'image') {
+                    imageContainer.classList.remove('hidden');
+                }
+            });
+        });
+
+        document.getElementById('choose-icon-btn').addEventListener('click', () => {
+            document.getElementById('favorite-icon-input').click();
+        });
+
+        document.getElementById('favorite-icon-input').addEventListener('change', handleFavoriteIconSelect);
+
+        favoriteEmojiInput.addEventListener('input', () => {
+            iconPreview.innerHTML = `<span class="emoji-icon">${favoriteEmojiInput.value}</span>`;
+        });
 
         function findGroupData(groupId, groupsArray) {
             for (let i = 0; i < groupsArray.length; i++) {
@@ -1339,9 +1448,36 @@
         });
 
         function openModal(isEdit, favorite = null) {
+            // Reseta o estado do ícone antes de abrir
+            editedFavoriteIconData = null;
+            document.getElementById('icon-preview').innerHTML = '';
+            document.querySelector('input[name="icon-type"][value="default"]').checked = true;
+            document.getElementById('emoji-input-container').classList.add('hidden');
+            document.getElementById('image-input-container').classList.add('hidden');
+            document.getElementById('favorite-emoji').value = '';
+
             modal.querySelector('h3').textContent = isEdit ? 'Editar Favorito' : 'Adicionar Novo Favorito';
             document.getElementById('favorite-name').value = isEdit ? favorite.name : '';
             document.getElementById('favorite-url').value = isEdit ? favorite.url : '';
+
+            // Lógica para preencher o ícone existente
+            if (isEdit && favorite.icon) {
+                if (favorite.icon.startsWith('data:image')) {
+                    // É uma imagem customizada
+                    document.querySelector('input[name="icon-type"][value="image"]').checked = true;
+                    document.getElementById('image-input-container').classList.remove('hidden');
+                    document.getElementById('icon-preview').innerHTML = `<img src="${favorite.icon}" style="width:100%; height:100%; object-fit:cover;">`;
+                    editedFavoriteIconData = favorite.icon; // Armazena o ícone atual
+                } else {
+                    // É um emoji
+                    document.querySelector('input[name="icon-type"][value="emoji"]').checked = true;
+                    document.getElementById('emoji-input-container').classList.remove('hidden');
+                    document.getElementById('image-input-container').classList.remove('hidden');
+                    document.getElementById('favorite-emoji').value = favorite.icon;
+                    document.getElementById('icon-preview').innerHTML = `<span class="emoji-icon">${favorite.icon}</span>`;
+                }
+            }
+
             modal.classList.add('show');
             document.getElementById('favorite-name').focus();
         }
@@ -1360,21 +1496,36 @@
             e.preventDefault();
             const name = document.getElementById('favorite-name').value.trim();
             const url = document.getElementById('favorite-url').value.trim();
-            if(!name || !url) return;
+            if (!name || !url) return;
             
             const groupInfo = findGroupData(currentGroupId, appData.groups);
             if (!groupInfo) return;
 
+            // Objeto base do favorito
+            const newFavoriteData = { name, url, id: 'fav' + Date.now() };
+
+            // Lógica para adicionar o ícone
+            const iconType = document.querySelector('input[name="icon-type"]:checked').value;
+            if (iconType === 'image' && editedFavoriteIconData) {
+                newFavoriteData.icon = editedFavoriteIconData;
+            } else if (iconType === 'emoji') {
+                newFavoriteData.icon = document.getElementById('favorite-emoji').value.trim();
+            } else {
+                newFavoriteData.icon = null; // Garante que seja nulo para o padrão
+            }
+
             if (editState.enabled) {
                 const favorite = groupInfo.group.favorites.find(f => f.id === editState.favoriteId);
                 if (favorite) {
-                    favorite.name = name;
-                    favorite.url = url;
+                    favorite.name = newFavoriteData.name;
+                    favorite.url = newFavoriteData.url;
+                    favorite.icon = newFavoriteData.icon; // Atualiza o ícone
                 }
             } else {
-                if(!groupInfo.group.favorites) groupInfo.group.favorites = [];
-                groupInfo.group.favorites.push({ id: 'fav' + Date.now(), name, url });
+                if (!groupInfo.group.favorites) groupInfo.group.favorites = [];
+                groupInfo.group.favorites.push(newFavoriteData);
             }
+            
             saveData();
             renderAndLayout();
             closeModal();
