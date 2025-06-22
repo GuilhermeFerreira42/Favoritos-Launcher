@@ -699,8 +699,6 @@
     };
 
     let appData = {};
-    // [NOVO] Variável para guardar as configurações antes da edição
-    let originalSettingsBeforeCustomization = null;
 
     function loadData() {
         const savedData = localStorage.getItem('launcherFavorites');
@@ -765,46 +763,65 @@
     }
 
     function handleWallpaperSelect(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+    const file = event.target.files[0];
+    if (!file) return;
 
-        const MAX_WIDTH_OR_HEIGHT = 1920;
-        const img = new Image();
-        const reader = new FileReader();
+    // --- Início da Lógica de Redimensionamento ---
 
-        img.onload = () => {
-            let { width, height } = img;
+    // 1. Define as dimensões máximas para o papel de parede. 1920px é ótimo para a maioria das telas.
+    const MAX_WIDTH_OR_HEIGHT = 1920;
+    
+    // 2. Cria um objeto de imagem em memória
+    const img = new Image();
+    const reader = new FileReader();
 
-            if (width > MAX_WIDTH_OR_HEIGHT || height > MAX_WIDTH_OR_HEIGHT) {
-                if (width > height) {
-                    height = (MAX_WIDTH_OR_HEIGHT / width) * height;
-                    width = MAX_WIDTH_OR_HEIGHT;
-                } else {
-                    width = (MAX_WIDTH_OR_HEIGHT / height) * width;
-                    height = MAX_WIDTH_OR_HEIGHT;
-                }
+    // 3. Define o que acontece quando a imagem terminar de carregar em memória
+    img.onload = () => {
+        let { width, height } = img; // Pega as dimensões originais
+
+        // 4. Verifica se a imagem precisa ser redimensionada
+        if (width > MAX_WIDTH_OR_HEIGHT || height > MAX_WIDTH_OR_HEIGHT) {
+            // Calcula as novas dimensões mantendo a proporção
+            if (width > height) {
+                height = (MAX_WIDTH_OR_HEIGHT / width) * height;
+                width = MAX_WIDTH_OR_HEIGHT;
+            } else {
+                width = (MAX_WIDTH_OR_HEIGHT / height) * width;
+                height = MAX_WIDTH_OR_HEIGHT;
             }
+        }
 
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            const resizedImageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            
-            appData.background = resizedImageDataUrl;
-            saveData();
-            applyWallpaper();
-            
-            URL.revokeObjectURL(img.src);
-        };
+        // 5. Cria o "quadro de pintura" (canvas) invisível com as novas dimensões
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        // 6. Desenha a imagem original (grande) na tela do canvas (pequena)
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // 7. Exporta o conteúdo do canvas como uma nova imagem JPG comprimida
+        // O segundo parâmetro (0.8) é a qualidade da compressão (80%).
+        const resizedImageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
         
-        reader.onload = (e) => {
-            img.src = e.target.result;
-        };
+        // 8. Usa a nova imagem redimensionada e salva os dados
+        appData.background = resizedImageDataUrl;
+        saveData();
+        applyWallpaper();
         
-        reader.readAsDataURL(file);
-    }
+        // Limpa o objeto de URL da memória para evitar vazamentos
+        URL.revokeObjectURL(img.src);
+    };
+    
+    // Define o que acontece quando o FileReader ler o arquivo
+    reader.onload = (e) => {
+        // Em vez de usar o resultado diretamente, o usamos para carregar o objeto de imagem
+        img.src = e.target.result;
+    };
+    
+    // Inicia a leitura do arquivo selecionado pelo usuário
+    reader.readAsDataURL(file);
+}
 
     function openWallpaperSelector() {
         document.getElementById('wallpaper-input').click();
@@ -926,7 +943,9 @@
         document.getElementById('import-input').click();
     }
     
-    // --- Lógica de Layout ---
+    // --- [NOVO] Lógica de Layout ---
+
+    // Função "Debounce" para evitar execuções excessivas no resize
     function debounce(func, delay) {
         let timeout;
         return function(...args) {
@@ -937,16 +956,13 @@
 
     function applyMasonryLayout() {
         const groupsContainer = document.getElementById('groups-container');
-        const groupElements = groupsContainer.querySelectorAll('.group:not([style*="display: none"])');
-        if (groupElements.length === 0) {
-            groupsContainer.style.height = '0px'; // [NOVO] Garante que o container encolha se todos os grupos forem escondidos
-            return;
-        }
+        const groupElements = groupsContainer.querySelectorAll('.group');
+        if (groupElements.length === 0) return;
 
         const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--layout-gap'), 10) || 32;
-        const itemWidth = parseInt(document.getElementById('block-width-slider').value, 10) || 320;
+        const itemWidth = appData.settings.blockWidth || 320;
         const containerWidth = groupsContainer.offsetWidth;
-        const numColumns = Math.max(1, Math.floor(containerWidth / (itemWidth + gap)));
+        const numColumns = Math.max(1, Math.floor(containerWidth / itemWidth));
         
         const columnHeights = Array(numColumns).fill(0);
         const columnLefts = [];
@@ -957,7 +973,7 @@
         }
 
         groupElements.forEach(group => {
-            group.style.width = `${effectiveItemWidth}px`;
+            group.style.width = `${effectiveItemWidth}px`; // Ajusta a largura para caber com o gap
             const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
             
             group.style.left = `${columnLefts[shortestColumnIndex]}px`;
@@ -971,7 +987,7 @@
 
     function resetLayoutStyles() {
         const groupsContainer = document.getElementById('groups-container');
-        groupsContainer.style.height = '';
+        groupsContainer.style.height = ''; // Reseta altura
         groupsContainer.classList.remove('layout-centered', 'layout-masonry');
         groupsContainer.querySelectorAll('.group').forEach(group => {
             group.style.position = '';
@@ -987,21 +1003,24 @@
 
         if (appData.settings && appData.settings.masonryLayout) {
             groupsContainer.classList.add('layout-masonry');
+            // A renderização precisa acontecer ANTES de calcular o mosaico
+            // para que os elementos tenham altura.
             setTimeout(applyMasonryLayout, 50); 
         } else if (appData.settings && appData.settings.centerBlocks) {
             groupsContainer.classList.add('layout-centered');
         }
     }
     
+    // [NOVO] Função combinada para renderizar e aplicar layout
     function renderAndLayout() {
-        render();
-        applyLayoutSettings();
+        render(); // Primeiro, o HTML é criado
+        applyLayoutSettings(); // Depois, o JS posiciona os elementos
     }
 
     // --- Camada de Apresentação (Renderização) ---
     function render() {
         const groupsContainer = document.getElementById('groups-container');
-        groupsContainer.innerHTML = '';
+        groupsContainer.innerHTML = ''; // Limpa antes de renderizar
         if (appData.groups && appData.groups.length > 0) {
             renderHierarquia(appData.groups, groupsContainer);
         }
@@ -1077,10 +1096,11 @@
     // --- Inicialização e Event Listeners ---
     document.addEventListener('DOMContentLoaded', () => {
         loadData();
-        applyDynamicStyles();
+        applyDynamicStyles(); // Aplica estilos dinâmicos
         applyWallpaper();
-        renderAndLayout();
+        renderAndLayout(); // Usa a nova função de inicialização
         
+        // [NOVO] Listener para recalcular layout Mosaico no resize
         window.addEventListener('resize', debounce(() => {
             if (appData.settings.masonryLayout) {
                 applyMasonryLayout();
@@ -1147,13 +1167,18 @@
             return null;
         }
         
+        // =================================================================
+        // LÓGICA DE DRAG AND DROP PARA GRUPOS
+        // =================================================================
         let draggedGroup = null;
         let placeholder = null;
         let isDraggingGroup = false;
         let dragOffsetX = 0, dragOffsetY = 0;
 
         groupsContainer.addEventListener('pointerdown', e => {
+            // [ALTERADO] Desativa o arraste de grupos no modo Mosaico
             if (appData.settings.masonryLayout) return; 
+            
             if (e.target.closest('.favorite-item')) return; 
 
             const groupHeader = e.target.closest('.group-header');
@@ -1254,6 +1279,9 @@
             renderAndLayout();
         }
 
+        // =================================================================
+        // LÓGICA DE DRAG AND DROP PARA FAVORITOS
+        // =================================================================
         let draggedItem = null;
         let sourceGroupId = null;
 
@@ -1328,20 +1356,23 @@
             }
         });
 
+        // =================================================================
+        // LÓGICA GERAL DE EVENTOS E MENUS
+        // =================================================================
         window.addEventListener('click', (e) => {
             if (!contextMenu.contains(e.target) && !contextMenuBtn.contains(e.target)) contextMenu.classList.remove('show');
             if (!groupContextMenu.contains(e.target) && !e.target.classList.contains('group-context-btn')) groupContextMenu.classList.remove('show');
         });
 
-        contextMenuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            groupContextMenu.classList.remove('show');
-            const rect = e.target.getBoundingClientRect();
-            contextMenu.style.top = `${rect.bottom + 5}px`; 
-            contextMenu.style.left = 'auto'; 
-            contextMenu.style.right = `${window.innerWidth - rect.right}px`; 
-            contextMenu.classList.toggle('show');
-        });
+    contextMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        groupContextMenu.classList.remove('show');
+        const rect = e.target.getBoundingClientRect();
+        contextMenu.style.top = `${rect.bottom + 5}px`; 
+        contextMenu.style.left = 'auto'; 
+        contextMenu.style.right = `${window.innerWidth - rect.right}px`; 
+        contextMenu.classList.toggle('show');
+    });
 
         contextMenu.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
@@ -1544,100 +1575,63 @@
                 const groupTitle = groupEl.querySelector('h2').textContent.toLowerCase();
                 groupEl.style.display = (groupTitle.includes(query) || hasVisibleFavorites) ? '' : 'none';
             });
-            
+            // Recalcula o layout após a busca
             if (appData.settings.masonryLayout) {
-                // [ALTERADO] Atraso para garantir que o DOM foi atualizado antes de recalcular
-                setTimeout(applyMasonryLayout, 50); 
+                applyMasonryLayout();
             }
         });
 
         wallpaperInput.addEventListener('change', handleWallpaperSelect);
         importInput.addEventListener('change', handleImportSelect);
 
-        // --- [SEÇÃO ALTERADA] Lógica do modal de personalização ---
+        // Lógica para o modal de personalização
         const customizeModal = document.getElementById('customize-modal');
         const closeCustomizeModalBtn = customizeModal.querySelector('.close-btn');
         const customizeForm = document.getElementById('customize-form');
         const blockWidthSlider = document.getElementById('block-width-slider');
         const blockWidthValueSpan = document.getElementById('block-width-value');
-        const searchWidthSlider = document.getElementById('search-width-slider');
-        const searchWidthValueSpan = document.getElementById('search-width-value');
-        const favoriteSizeSlider = document.getElementById('favorite-size-slider');
-        const favoriteSizeValueSpan = document.getElementById('favorite-size-value');
         const resetWidthBtn = document.getElementById('reset-width-btn');
         const centerBlocksCheckbox = document.getElementById('center-blocks-checkbox');
         const masonryLayoutCheckbox = document.getElementById('masonry-layout-checkbox');
         const DEFAULT_BLOCK_WIDTH = 320;
 
         function openCustomizeModal() {
-            // [NOVO] Guarda uma cópia profunda das configurações atuais ao abrir o modal
-            originalSettingsBeforeCustomization = JSON.parse(JSON.stringify(appData.settings));
-
             if (!appData.settings) appData.settings = JSON.parse(JSON.stringify(defaultData.settings));
+            const currentWidth = appData.settings.blockWidth || DEFAULT_BLOCK_WIDTH;
+            const currentSearchWidth = appData.settings.searchBarWidth || 500;
+            const currentFavSize = appData.settings.favoriteSize || 60;
+            const isCentered = appData.settings.centerBlocks || false;
+            const isMasonry = appData.settings.masonryLayout || false;
             
-            const settings = appData.settings;
-            blockWidthSlider.value = settings.blockWidth || DEFAULT_BLOCK_WIDTH;
-            blockWidthValueSpan.textContent = settings.blockWidth || DEFAULT_BLOCK_WIDTH;
-            searchWidthSlider.value = settings.searchBarWidth || 500;
-            searchWidthValueSpan.textContent = settings.searchBarWidth || 500;
-            favoriteSizeSlider.value = settings.favoriteSize || 60;
-            favoriteSizeValueSpan.textContent = settings.favoriteSize || 60;
-            centerBlocksCheckbox.checked = settings.centerBlocks || false;
-            masonryLayoutCheckbox.checked = settings.masonryLayout || false;
+            blockWidthSlider.value = currentWidth;
+            blockWidthValueSpan.textContent = currentWidth;
+            searchWidthSlider.value = currentSearchWidth;
+            searchWidthValueSpan.textContent = currentSearchWidth;
+            favoriteSizeSlider.value = currentFavSize;
+            favoriteSizeValueSpan.textContent = currentFavSize;
+            centerBlocksCheckbox.checked = isCentered;
+            masonryLayoutCheckbox.checked = isMasonry;
 
             customizeModal.classList.add('show');
         }
 
-        // [NOVO] Função para aplicar os estilos e layout da pré-visualização
-        function applyLivePreview() {
-            const root = document.documentElement;
-            const groupsContainer = document.getElementById('groups-container');
-
-            // Atualiza os valores dos spans
+        blockWidthSlider.addEventListener('input', () => {
             blockWidthValueSpan.textContent = blockWidthSlider.value;
-            searchWidthValueSpan.textContent = searchWidthSlider.value;
-            favoriteSizeValueSpan.textContent = favoriteSizeSlider.value;
+        });
 
-            // Aplica estilos dinâmicos (CSS variables)
-            root.style.setProperty('--search-bar-width', `${searchWidthSlider.value}px`);
-            const favSize = parseInt(favoriteSizeSlider.value, 10);
-            root.style.setProperty('--favorite-item-size', `${favSize}px`);
-            const fontSize = 0.8 * (favSize / 60);
-            root.style.setProperty('--favorite-font-size', `${fontSize.toFixed(2)}rem`);
-
-            // Aplica largura dos blocos
-            document.querySelectorAll('.group').forEach(group => {
-                group.style.width = `${blockWidthSlider.value}px`;
-            });
-
-            // Reseta e aplica o layout (grade ou mosaico)
-            resetLayoutStyles();
-            if (masonryLayoutCheckbox.checked) {
-                groupsContainer.classList.add('layout-masonry');
-                // Usa o valor do slider diretamente para o cálculo
-                setTimeout(() => applyMasonryLayout(), 50);
-            } else if (centerBlocksCheckbox.checked) {
-                groupsContainer.classList.add('layout-centered');
-            } else {
-                 // Garante que o container volte ao layout padrão se nenhuma caixa estiver marcada
-                renderAndLayout();
-            }
-        }
-        
-        // [NOVO] Adiciona listeners para a pré-visualização em tempo real
-        blockWidthSlider.addEventListener('input', applyLivePreview);
-        searchWidthSlider.addEventListener('input', applyLivePreview);
-        favoriteSizeSlider.addEventListener('input', applyLivePreview);
         centerBlocksCheckbox.addEventListener('change', () => {
-            if (centerBlocksCheckbox.checked) masonryLayoutCheckbox.checked = false;
-            applyLivePreview();
-        });
-        masonryLayoutCheckbox.addEventListener('change', () => {
-            if (masonryLayoutCheckbox.checked) centerBlocksCheckbox.checked = false;
-            applyLivePreview();
+            if (centerBlocksCheckbox.checked) {
+                masonryLayoutCheckbox.checked = false;
+            }
         });
 
-        // [ALTERADO] O submit agora apenas salva as configurações que já estão sendo pré-visualizadas
+        masonryLayoutCheckbox.addEventListener('change', () => {
+            if (masonryLayoutCheckbox.checked) {
+                centerBlocksCheckbox.checked = false;
+            }
+        });
+
+
         customizeForm.addEventListener('submit', (e) => {
             e.preventDefault();
             appData.settings.blockWidth = parseInt(blockWidthSlider.value, 10);
@@ -1646,44 +1640,38 @@
             appData.settings.centerBlocks = centerBlocksCheckbox.checked;
             appData.settings.masonryLayout = masonryLayoutCheckbox.checked;
             saveData();
-            // A pré-visualização já atualizou o layout, então só precisamos fechar o modal.
+            applyDynamicStyles();
+            renderAndLayout();
             customizeModal.classList.remove('show');
-            originalSettingsBeforeCustomization = null; // Limpa o backup
         });
-        
-        // [ALTERADO] O botão de reset agora também aplica as mudanças em tempo real
+
         resetWidthBtn.addEventListener('click', () => {
-            // Atualiza os sliders para os valores padrão
-            blockWidthSlider.value = DEFAULT_BLOCK_WIDTH;
-            searchWidthSlider.value = 500;
-            favoriteSizeSlider.value = 60;
-            centerBlocksCheckbox.checked = false;
-            masonryLayoutCheckbox.checked = false;
-            // Aplica a pré-visualização com os valores resetados
-            applyLivePreview();
+            appData.settings.blockWidth = DEFAULT_BLOCK_WIDTH;
+            appData.settings.searchBarWidth = 500;
+            appData.settings.favoriteSize = 60;
+            appData.settings.centerBlocks = false;
+            appData.settings.masonryLayout = false;
+            saveData();
+            applyDynamicStyles();
+            renderAndLayout();
+            customizeModal.classList.remove('show');
         });
 
-        // [NOVO] Função para reverter as alterações e fechar o modal
-        function revertAndCloseCustomization() {
-            if (originalSettingsBeforeCustomization) {
-                appData.settings = originalSettingsBeforeCustomization;
-                originalSettingsBeforeCustomization = null;
-                saveData(); // Salva para garantir consistência, opcional
-                applyDynamicStyles();
-                renderAndLayout();
-            }
+        closeCustomizeModalBtn.addEventListener('click', () => {
             customizeModal.classList.remove('show');
-        }
-
-        // [ALTERADO] Listeners de fechamento agora revertem as alterações
-        closeCustomizeModalBtn.addEventListener('click', revertAndCloseCustomization);
+        });
         customizeModal.addEventListener('click', (e) => {
             if (e.target === customizeModal) {
-                revertAndCloseCustomization();
+                customizeModal.classList.remove('show');
             }
         });
 
         const addGroupBtn = document.getElementById('add-group-btn');
+        const searchWidthSlider = document.getElementById('search-width-slider');
+        const searchWidthValueSpan = document.getElementById('search-width-value');
+        const favoriteSizeSlider = document.getElementById('favorite-size-slider');
+        const favoriteSizeValueSpan = document.getElementById('favorite-size-value');
+        
         addGroupBtn.addEventListener('click', createNewGroup);
     });
 
@@ -1692,14 +1680,17 @@
         const settings = appData.settings;
         const root = document.documentElement;
 
+        // Aplica largura da barra de pesquisa
         root.style.setProperty('--search-bar-width', `${settings.searchBarWidth || 500}px`);
 
+        // Aplica tamanho dos favoritos e da fonte proporcionalmente
         const favSize = settings.favoriteSize || 60;
         root.style.setProperty('--favorite-item-size', `${favSize}px`);
-        const fontSize = 0.8 * (favSize / 60);
+        const fontSize = 0.8 * (favSize / 60); // Calcula fonte proporcional
         root.style.setProperty('--favorite-font-size', `${fontSize.toFixed(2)}rem`);
     }
 
+    // Função para criar um novo grupo (para evitar repetição de código)
     function createNewGroup() {
         const groupName = prompt('Digite o nome do novo grupo:');
         if (groupName && groupName.trim()) {
@@ -1715,5 +1706,6 @@
         }
     }
 </script>
+
 </body>
 </html>
